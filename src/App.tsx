@@ -160,8 +160,20 @@ export const App: React.FC = () => {
       setSoundpads(data.soundpads);
     }
     if (data.quickLaunchSlots && data.quickLaunchSlots.length > 0) {
-      setQuickLaunchSlots(data.quickLaunchSlots);
+      // Re-create fileUrl for each slot from IndexedDB (Object URLs expire between sessions)
+      const restoredSlots = await Promise.all(
+        data.quickLaunchSlots.map(async (slot) => {
+          if (!slot.trackId) return slot;
+          const blob = await storageService.getAudioBlob(slot.trackId);
+          if (blob) {
+            return { ...slot, fileUrl: URL.createObjectURL(blob) };
+          }
+          return { ...slot, fileUrl: undefined }; // blob missing – clear invalid URL
+        })
+      );
+      setQuickLaunchSlots(restoredSlots);
     }
+
     if (data.mixerSettings) {
       setMixerSettings(data.mixerSettings);
       if (data.mixerSettings.duckingAmount) {
