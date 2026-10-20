@@ -1,7 +1,7 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+﻿import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Play, Pause, Square, Volume2, Repeat, Trash2,
-  Music, Plus, Download, Star
+  Music, Plus, Download, Star, Scissors, X, ChevronDown, ChevronUp
 } from 'lucide-react';
 import type { QuickLaunchSlot, AudioTrack } from '../types/audio';
 
@@ -21,6 +21,24 @@ interface SlotPlayState {
 
 const HOTKEYS = ['F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'];
 
+const fmtShort = (s: number) => {
+  if (!s || isNaN(s)) return '0:00';
+  return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+};
+
+const fmtTenths = (s: number) => {
+  if (!s || isNaN(s)) return '0:00.0';
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${String(Math.floor(sec)).padStart(2, '0')}.${Math.floor((sec % 1) * 10)}`;
+};
+
+const parseTime = (str: string): number | null => {
+  const m = str.match(/^(\d+):([0-5]?\d)(?:\.(\d))?$/);
+  if (!m) return null;
+  return parseInt(m[1]) * 60 + parseInt(m[2]) + (m[3] ? parseInt(m[3]) / 10 : 0);
+};
+
 export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
   slots,
   tracks,
@@ -28,14 +46,17 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
   onAssignTrack,
   onClearSlot,
 }) => {
-  // Per-slot HTMLAudioElement refs
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const [playStates, setPlayStates] = useState<Map<string, SlotPlayState>>(new Map());
   const [draggingOver, setDraggingOver] = useState<string | null>(null);
-  const [showTrackPicker, setShowTrackPicker] = useState<string | null>(null); // slotId
+  const [showTrackPicker, setShowTrackPicker] = useState<string | null>(null);
   const [pickerSearch, setPickerSearch] = useState('');
+  const [timelineOpenSlot, setTimelineOpenSlot] = useState<string | null>(null);
+  const [tlInValue, setTlInValue] = useState('');
+  const [tlOutValue, setTlOutValue] = useState('');
+  const [tlInError, setTlInError] = useState(false);
+  const [tlOutError, setTlOutError] = useState(false);
 
-  // Initialize or get audio element for a slot
   const getOrCreateAudio = useCallback((slotId: string, fileUrl: string, volume: number, loop: boolean) => {
     let audio = audioRefs.current.get(slotId);
     if (!audio) {
@@ -49,60 +70,56 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
     }
     audio.volume = Math.max(0, Math.min(1, volume));
     audio.loop = loop;
-
-    // Bind event listeners
-    const onTimeUpdate = () => {
-      setPlayStates(prev => new Map(prev).set(slotId, {
+    if (!audio.dataset.listenersBound) {
+      const updateState = () => setPlayStates(prev => new Map(prev).set(slotId, {
         isPlaying: !audio!.paused,
         currentTime: audio!.currentTime,
         duration: audio!.duration || 0,
       }));
-    };
-    const onEnded = () => {
-      setPlayStates(prev => new Map(prev).set(slotId, {
-        isPlaying: false,
-        currentTime: 0,
-        duration: audio!.duration || 0,
-      }));
-    };
-
-    // Only add listeners once
-    if (!audio.dataset.listenersBound) {
-      audio.addEventListener('timeupdate', onTimeUpdate);
-      audio.addEventListener('ended', onEnded);
-      audio.addEventListener('pause', onTimeUpdate);
-      audio.addEventListener('play', onTimeUpdate);
+      audio.addEventListener('timeupdate', updateState);
+      audio.addEventListener('ended', () => setPlayStates(prev => new Map(prev).set(slotId, {
+        isPlaying: false, currentTime: 0, duration: audio!.duration || 0,
+      })));
+      audio.addEventListener('pause', updateState);
+      audio.addEventListener('play', updateState);
       audio.dataset.listenersBound = 'true';
     }
-
     return audio;
   }, []);
 
-  // Cleanup on unmount
+  // OUT-point watcher
   useEffect(() => {
-    return () => {
-      audioRefs.current.forEach(audio => {
-        audio.pause();
-        audio.src = '';
+    const iv = setInterval(() => {
+      slots.forEach(slot => {
+        if (!slot.fileUrl || slot.endTime === undefined) return;
+        const audio = audioRefs.current.get(slot.id);
+        if (!audio || audio.paused) return;
+        if (audio.currentTime >= slot.endTime) {
+          if (slot.loop) {
+            audio.currentTime = slot.startTime ?? 0;
+          } else {
+            audio.pause();
+            audio.currentTime = slot.startTime ?? 0;
+          }
+        }
       });
-      audioRefs.current.clear();
-    };
+    }, 80);
+    return () => clearInterval(iv);
+  }, [slots]);
+
+  useEffect(() => () => {
+    audioRefs.current.forEach(a => { a.pause(); a.src = ''; });
+    audioRefs.current.clear();
   }, []);
 
-  // Keyboard F1-F12 trigger
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      // Only trigger if no input focused
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-
       const idx = HOTKEYS.indexOf(e.key);
       if (idx === -1) return;
       const slot = slots.find(s => s.slot === idx);
-      if (slot && slot.fileUrl) {
-        e.preventDefault();
-        handleTogglePlay(slot);
-      }
+      if (slot && slot.fileUrl) { e.preventDefault(); handleTogglePlay(slot); }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -113,11 +130,13 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
     if (!slot.fileUrl) return;
     const audio = getOrCreateAudio(slot.id, slot.fileUrl, slot.volume, slot.loop);
     const state = playStates.get(slot.id);
+    const inPt = slot.startTime ?? 0;
     if (state?.isPlaying) {
       audio.pause();
     } else {
-      if (audio.ended || audio.currentTime >= (audio.duration || 0) - 0.1) {
-        audio.currentTime = 0;
+      const outPt = slot.endTime ?? audio.duration;
+      if (audio.ended || audio.currentTime >= (outPt || audio.duration) - 0.1 || audio.currentTime < inPt) {
+        audio.currentTime = inPt;
       }
       audio.play().catch(console.error);
     }
@@ -127,8 +146,10 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
     const audio = audioRefs.current.get(slot.id);
     if (audio) {
       audio.pause();
-      audio.currentTime = 0;
-      setPlayStates(prev => new Map(prev).set(slot.id, { isPlaying: false, currentTime: 0, duration: audio.duration || 0 }));
+      audio.currentTime = slot.startTime ?? 0;
+      setPlayStates(prev => new Map(prev).set(slot.id, {
+        isPlaying: false, currentTime: slot.startTime ?? 0, duration: audio.duration || 0,
+      }));
     }
   };
 
@@ -145,54 +166,103 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
     onUpdateSlot({ ...slot, loop: next });
   };
 
-  // Drag-and-drop from library
-  const handleDragOver = (e: React.DragEvent, slotId: string) => {
-    e.preventDefault();
-    setDraggingOver(slotId);
+  const handleScrubberClick = (e: React.MouseEvent<HTMLDivElement>, slot: QuickLaunchSlot) => {
+    const audio = audioRefs.current.get(slot.id);
+    if (!audio) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const dur = audio.duration || slot.duration || 0;
+    if (!dur) return;
+    audio.currentTime = ratio * dur;
   };
+
+  const handleSetIn = (slot: QuickLaunchSlot) => {
+    const audio = audioRefs.current.get(slot.id);
+    const cur = audio?.currentTime ?? 0;
+    if (slot.endTime !== undefined && cur >= slot.endTime) return;
+    onUpdateSlot({ ...slot, startTime: cur });
+    setTlInValue(fmtTenths(cur));
+  };
+
+  const handleSetOut = (slot: QuickLaunchSlot) => {
+    const audio = audioRefs.current.get(slot.id);
+    const dur = audio?.duration || slot.duration || 0;
+    const cur = audio?.currentTime ?? dur;
+    if (cur <= (slot.startTime ?? 0)) return;
+    onUpdateSlot({ ...slot, endTime: cur });
+    setTlOutValue(fmtTenths(cur));
+  };
+
+  const handleResetTimeline = (slot: QuickLaunchSlot) => {
+    const audio = audioRefs.current.get(slot.id);
+    if (audio) audio.currentTime = 0;
+    onUpdateSlot({ ...slot, startTime: undefined, endTime: undefined });
+    setTlInValue(''); setTlOutValue('');
+  };
+
+  const openTimeline = (slot: QuickLaunchSlot) => {
+    const dur = slot.duration ?? 0;
+    setTlInValue(slot.startTime !== undefined ? fmtTenths(slot.startTime) : '0:00.0');
+    setTlOutValue(slot.endTime !== undefined ? fmtTenths(slot.endTime) : (dur > 0 ? fmtTenths(dur) : ''));
+    setTlInError(false); setTlOutError(false);
+    setTimelineOpenSlot(slot.id);
+  };
+
+  const commitTlIn = (slot: QuickLaunchSlot) => {
+    const v = parseTime(tlInValue);
+    const dur = (audioRefs.current.get(slot.id)?.duration) || slot.duration || 0;
+    const outPt = slot.endTime ?? dur;
+    if (v === null || v < 0 || (outPt > 0 && v >= outPt)) { setTlInError(true); return; }
+    setTlInError(false);
+    onUpdateSlot({ ...slot, startTime: v });
+  };
+
+  const commitTlOut = (slot: QuickLaunchSlot) => {
+    const v = parseTime(tlOutValue);
+    const dur = (audioRefs.current.get(slot.id)?.duration) || slot.duration || 0;
+    const inPt = slot.startTime ?? 0;
+    if (v === null || v <= inPt || (dur > 0 && v > dur)) { setTlOutError(true); return; }
+    setTlOutError(false);
+    onUpdateSlot({ ...slot, endTime: v });
+  };
+
+  const handleDragOver = (e: React.DragEvent, slotId: string) => { e.preventDefault(); setDraggingOver(slotId); };
   const handleDragLeave = () => setDraggingOver(null);
   const handleDrop = (e: React.DragEvent, slot: QuickLaunchSlot) => {
-    e.preventDefault();
-    setDraggingOver(null);
+    e.preventDefault(); setDraggingOver(null);
     const trackId = e.dataTransfer.getData('text/plain');
-    if (trackId) {
-      const track = tracks.find(t => t.id === trackId);
-      if (track) onAssignTrack(slot.id, track);
-    }
+    if (trackId) { const track = tracks.find(t => t.id === trackId); if (track) onAssignTrack(slot.id, track); }
   };
 
-  const formatTime = (s: number) => {
-    if (!s || isNaN(s)) return '0:00';
-    return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-  };
-
-  const filteredTracks = tracks.filter(t =>
-    t.title.toLowerCase().includes(pickerSearch.toLowerCase())
-  );
+  const filteredTracks = tracks.filter(t => t.title.toLowerCase().includes(pickerSearch.toLowerCase()));
 
   return (
     <div className="qlb-section">
-      {/* Header */}
       <div className="qlb-header">
         <div className="qlb-title-group">
           <Star size={18} className="qlb-star-icon" />
-          <h3>BÀN NHẠC QUAN TRỌNG — QUICK LAUNCH ({slots.filter(s => s.trackId).length}/{slots.length} slot)</h3>
+          <h3>BAN NHAC QUAN TRONG — QUICK LAUNCH ({slots.filter(s => s.trackId).length}/{slots.length} slot)</h3>
         </div>
         <div className="qlb-header-hint">
-          <span>Kéo bài từ Kho Nhạc vào slot • Bấm nút <kbd>+</kbd> để chọn bài • Dùng phím <kbd>F1</kbd>–<kbd>F12</kbd> để phát tức thì</span>
+          <span>Keo bai tu Kho Nhac vao slot • Bam nut <kbd>+</kbd> de chon bai • Dung phim <kbd>F1</kbd>–<kbd>F12</kbd> de phat tuc thi • <kbd>✂</kbd> chinh timeline IN/OUT</span>
         </div>
       </div>
 
-      {/* Slots Grid */}
       <div className="qlb-grid">
         {slots.map((slot) => {
           const state = playStates.get(slot.id);
           const isPlaying = state?.isPlaying ?? false;
-          const currentTime = state?.currentTime ?? 0;
+          const currentTime = state?.currentTime ?? (slot.startTime ?? 0);
           const duration = state?.duration ?? slot.duration ?? 0;
+          const inPt = slot.startTime ?? 0;
+          const outPt = slot.endTime ?? duration;
           const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+          const inPct = duration > 0 ? (inPt / duration) * 100 : 0;
+          const outPct = duration > 0 && outPt > 0 ? (outPt / duration) * 100 : 100;
+          const hasRange = (slot.startTime !== undefined && slot.startTime > 0) || slot.endTime !== undefined;
           const isEmpty = !slot.trackId;
           const color = slot.color;
+          const isTimelineOpen = timelineOpenSlot === slot.id;
 
           return (
             <div
@@ -203,111 +273,124 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, slot)}
             >
-              {/* Slot Number & Hotkey */}
               <div className="qlb-slot-num">
-                <span className="qlb-num-badge" style={{ borderColor: color, color }}>
-                  {slot.slot + 1}
-                </span>
+                <span className="qlb-num-badge" style={{ borderColor: color, color }}>{slot.slot + 1}</span>
                 <span className="qlb-hotkey-tag">{HOTKEYS[slot.slot]}</span>
                 {!isEmpty && (
-                  <button
-                    className="qlb-clear-btn"
-                    onClick={() => { handleStop(slot); onClearSlot(slot.id); }}
-                    title="Xóa bài khỏi slot"
-                  >
+                  <button className="qlb-clear-btn" onClick={() => { handleStop(slot); onClearSlot(slot.id); }} title="Xoa bai khoi slot">
                     <Trash2 size={11} />
                   </button>
                 )}
               </div>
 
               {isEmpty ? (
-                /* Empty state */
                 <div className="qlb-empty-state">
                   <Music size={24} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-                  <span>Chưa có bài</span>
-                  <button
-                    className="qlb-assign-btn"
-                    onClick={() => { setShowTrackPicker(slot.id); setPickerSearch(''); }}
-                    style={{ borderColor: color, color }}
-                  >
-                    <Plus size={13} /> Chọn bài
+                  <span>Chua co bai</span>
+                  <button className="qlb-assign-btn" onClick={() => { setShowTrackPicker(slot.id); setPickerSearch(''); }} style={{ borderColor: color, color }}>
+                    <Plus size={13} /> Chon bai
                   </button>
-                  <span className="qlb-drag-hint">hoặc kéo thả từ Kho Nhạc</span>
+                  <span className="qlb-drag-hint">hoac keo tha tu Kho Nhac</span>
                 </div>
               ) : (
-                /* Loaded state */
                 <>
-                  {/* Track name */}
-                  <div className="qlb-track-name" title={slot.label}>
-                    <span>{slot.label}</span>
+                  <div className="qlb-track-name" title={slot.label}><span>{slot.label}</span></div>
+
+                  {/* Interactive scrubber */}
+                  <div className="qlb-scrubber-wrap" onClick={(e) => handleScrubberClick(e, slot)} title="Click de tua nhac">
+                    <div className="qlb-scrubber-bg" />
+                    <div className="qlb-scrubber-range" style={{ left: `${inPct}%`, width: `${outPct - inPct}%`, background: color }} />
+                    <div className="qlb-scrubber-head" style={{ left: `${progress}%`, background: color }} />
+                    {inPt > 0 && <div className="qlb-scrubber-marker qlb-marker-in" style={{ left: `${inPct}%`, borderColor: color }} title={`IN: ${fmtShort(inPt)}`} />}
+                    {slot.endTime !== undefined && <div className="qlb-scrubber-marker qlb-marker-out" style={{ left: `${outPct}%`, borderColor: color }} title={`OUT: ${fmtShort(outPt)}`} />}
                   </div>
 
-                  {/* Progress bar */}
-                  <div className="qlb-progress-bar">
-                    <div
-                      className="qlb-progress-fill"
-                      style={{ width: `${progress}%`, background: color }}
-                    />
-                  </div>
                   <div className="qlb-time-row">
-                    <span>{formatTime(currentTime)}</span>
-                    <span className="qlb-time-total">/{formatTime(duration)}</span>
+                    <span>{fmtShort(currentTime)}</span>
+                    {hasRange && <span className="qlb-range-badge" style={{ color }}>{fmtShort(inPt)}→{fmtShort(slot.endTime ?? duration)}</span>}
+                    <span className="qlb-time-total">/{fmtShort(duration)}</span>
                   </div>
 
-                  {/* Controls */}
                   <div className="qlb-controls">
-                    <button
-                      className={`qlb-play-btn ${isPlaying ? 'qlb-playing' : 'qlb-cued'}`}
+                    <button className={`qlb-play-btn ${isPlaying ? 'qlb-playing' : 'qlb-cued'}`}
                       style={isPlaying ? { background: color, boxShadow: `0 0 14px ${color}80` } : { borderColor: color, color }}
-                      onClick={() => handleTogglePlay(slot)}
-                      title={isPlaying ? 'Tạm dừng' : 'Phát ngay'}
-                    >
+                      onClick={() => handleTogglePlay(slot)} title={isPlaying ? 'Tam dung' : 'Phat ngay'}>
                       {isPlaying ? <Pause size={18} /> : <Play size={18} />}
                     </button>
-
-                    <button
-                      className="qlb-stop-btn"
-                      onClick={() => handleStop(slot)}
-                      disabled={!isPlaying && currentTime === 0}
-                      title="Dừng & về đầu"
-                    >
+                    <button className="qlb-stop-btn" onClick={() => handleStop(slot)}
+                      disabled={!isPlaying && currentTime === (slot.startTime ?? 0)} title="Dung & ve IN point">
                       <Square size={13} />
                     </button>
-
-                    <button
-                      className={`qlb-loop-btn ${slot.loop ? 'active' : ''}`}
-                      onClick={() => handleLoopToggle(slot)}
-                      title={slot.loop ? 'Tắt lặp' : 'Bật lặp'}
-                      style={slot.loop ? { color, borderColor: color } : {}}
-                    >
+                    <button className={`qlb-loop-btn ${slot.loop ? 'active' : ''}`}
+                      onClick={() => handleLoopToggle(slot)} title={slot.loop ? 'Tat lap' : 'Bat lap'}
+                      style={slot.loop ? { color, borderColor: color } : {}}>
                       <Repeat size={13} />
+                    </button>
+                    <button className={`qlb-timeline-toggle ${isTimelineOpen ? 'active' : ''} ${hasRange ? 'has-range' : ''}`}
+                      onClick={() => isTimelineOpen ? setTimelineOpenSlot(null) : openTimeline(slot)}
+                      title="Chinh timeline IN/OUT"
+                      style={hasRange ? { color, borderColor: color } : {}}>
+                      <Scissors size={12} />
+                      {isTimelineOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                     </button>
                   </div>
 
-                  {/* Volume */}
                   <div className="qlb-volume-row">
                     <Volume2 size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.02"
-                      value={slot.volume}
+                    <input type="range" min="0" max="1" step="0.02" value={slot.volume}
                       onChange={(e) => handleVolumeChange(slot, parseFloat(e.target.value))}
-                      className="qlb-vol-slider"
-                      style={{ '--thumb-color': color } as React.CSSProperties}
-                      title={`Âm lượng: ${Math.round(slot.volume * 100)}%`}
-                    />
+                      className="qlb-vol-slider" style={{ '--thumb-color': color } as React.CSSProperties}
+                      title={`Am luong: ${Math.round(slot.volume * 100)}%`} />
                     <span className="qlb-vol-pct">{Math.round(slot.volume * 100)}%</span>
                   </div>
 
-                  {/* Replace button */}
-                  <button
-                    className="qlb-replace-btn"
-                    onClick={() => { setShowTrackPicker(slot.id); setPickerSearch(''); }}
-                    title="Đổi bài khác"
-                  >
-                    <Download size={11} /> Đổi bài
+                  {/* Timeline editor */}
+                  {isTimelineOpen && (
+                    <div className="qlb-tl-editor" style={{ '--tl-color': color } as React.CSSProperties}>
+                      <div className="qlb-tl-header">
+                        <Scissors size={11} />
+                        <span>Timeline IN / OUT</span>
+                        <button className="qlb-tl-close" onClick={() => setTimelineOpenSlot(null)}><X size={10} /></button>
+                      </div>
+                      <div className="qlb-tl-quick">
+                        <button className="qlb-tl-set-btn" onClick={() => handleSetIn(slot)} title="Dat diem IN tai vi tri hien tai">▷ Set IN</button>
+                        <span className="qlb-tl-now">{fmtShort(currentTime)}</span>
+                        <button className="qlb-tl-set-btn" onClick={() => handleSetOut(slot)} title="Dat diem OUT tai vi tri hien tai">Set OUT ◁</button>
+                      </div>
+                      <div className="qlb-tl-inputs">
+                        <div className="qlb-tl-field">
+                          <label>IN</label>
+                          <input type="text" className={`qlb-tl-input ${tlInError ? 'error' : ''}`}
+                            value={tlInValue}
+                            onChange={e => { setTlInValue(e.target.value); setTlInError(false); }}
+                            onBlur={() => commitTlIn(slot)}
+                            onKeyDown={e => e.key === 'Enter' && commitTlIn(slot)}
+                            placeholder="0:00.0" />
+                        </div>
+                        <span className="qlb-tl-arrow">→</span>
+                        <div className="qlb-tl-field">
+                          <label>OUT</label>
+                          <input type="text" className={`qlb-tl-input ${tlOutError ? 'error' : ''}`}
+                            value={tlOutValue}
+                            onChange={e => { setTlOutValue(e.target.value); setTlOutError(false); }}
+                            onBlur={() => commitTlOut(slot)}
+                            onKeyDown={e => e.key === 'Enter' && commitTlOut(slot)}
+                            placeholder={duration > 0 ? fmtShort(duration) : 'M:SS'} />
+                        </div>
+                      </div>
+                      {(slot.startTime !== undefined || slot.endTime !== undefined) && (
+                        <div className="qlb-tl-clip-info">
+                          <span>Doan phat: {fmtShort((slot.endTime ?? duration) - (slot.startTime ?? 0))}</span>
+                          <button className="qlb-tl-reset" onClick={() => handleResetTimeline(slot)} title="Xoa IN/OUT – phat toan bo">
+                            <X size={9} /> Reset
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <button className="qlb-replace-btn" onClick={() => { setShowTrackPicker(slot.id); setPickerSearch(''); }} title="Doi bai khac">
+                    <Download size={11} /> Doi bai
                   </button>
                 </>
               )}
@@ -316,39 +399,29 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
         })}
       </div>
 
-      {/* Track Picker Modal */}
       {showTrackPicker && (
         <div className="qlb-picker-overlay" onClick={() => setShowTrackPicker(null)}>
           <div className="qlb-picker-modal" onClick={(e) => e.stopPropagation()}>
             <div className="qlb-picker-header">
-              <h4>Chọn bài hát cho Slot {(slots.find(s => s.id === showTrackPicker)?.slot ?? 0) + 1}</h4>
+              <h4>Chon bai hat cho Slot {(slots.find(s => s.id === showTrackPicker)?.slot ?? 0) + 1}</h4>
               <button className="qlb-picker-close" onClick={() => setShowTrackPicker(null)}>✕</button>
             </div>
-            <input
-              type="text"
-              className="qlb-picker-search"
-              placeholder="Tìm bài hát..."
-              value={pickerSearch}
-              onChange={(e) => setPickerSearch(e.target.value)}
-              autoFocus
-            />
+            <input type="text" className="qlb-picker-search" placeholder="Tim bai hat..."
+              value={pickerSearch} onChange={(e) => setPickerSearch(e.target.value)} autoFocus />
             <div className="qlb-picker-list">
               {filteredTracks.length === 0 ? (
                 <div className="qlb-picker-empty">
                   <Music size={28} style={{ opacity: 0.3 }} />
-                  <p>Chưa có bài nào trong kho nhạc</p>
-                  <span>Hãy thêm nhạc vào Kho Nhạc trước</span>
+                  <p>Chua co bai nao trong kho nhac</p>
+                  <span>Hay them nhac vao Kho Nhac truoc</span>
                 </div>
               ) : filteredTracks.map(track => (
-                <button
-                  key={track.id}
-                  className="qlb-picker-item"
+                <button key={track.id} className="qlb-picker-item"
                   onClick={() => {
                     const slot = slots.find(s => s.id === showTrackPicker);
                     if (slot) onAssignTrack(slot.id, track);
                     setShowTrackPicker(null);
-                  }}
-                >
+                  }}>
                   <Music size={14} style={{ color: 'var(--neon-cyan)', flexShrink: 0 }} />
                   <div className="qlb-picker-item-info">
                     <span className="qlb-picker-name">{track.title}</span>

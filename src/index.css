@@ -3329,6 +3329,278 @@ body {
   opacity: 0.7;
 }
 
+/* ====== Interactive Scrubber ====== */
+.qlb-scrubber-wrap {
+  position: relative;
+  height: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 3px 0;
+  border-radius: 4px;
+}
+
+.qlb-scrubber-wrap:hover .qlb-scrubber-head {
+  transform: translateX(-50%) scale(1.4);
+}
+
+.qlb-scrubber-bg {
+  position: absolute;
+  inset: 4px 0;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.qlb-scrubber-range {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 3px;
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.qlb-scrubber-wrap:hover .qlb-scrubber-range {
+  opacity: 0.55;
+}
+
+.qlb-scrubber-head {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  transition: transform 0.1s;
+  pointer-events: none;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* IN / OUT triangle markers */
+.qlb-scrubber-marker {
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.qlb-marker-in {
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid;
+  transform: translateX(-50%);
+}
+
+.qlb-marker-out {
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 7px solid;
+  bottom: 0;
+  top: auto;
+  transform: translateX(-50%);
+}
+
+/* Range badge in time row */
+.qlb-range-badge {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Timeline toggle button */
+.qlb-timeline-toggle {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 5px;
+  padding: 5px 7px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transition: var(--transition-fast);
+}
+
+.qlb-timeline-toggle:hover,
+.qlb-timeline-toggle.active {
+  border-color: var(--tl-color, var(--neon-amber));
+  color: var(--tl-color, var(--neon-amber));
+  background: color-mix(in srgb, var(--tl-color, var(--neon-amber)) 10%, var(--bg-input));
+}
+
+.qlb-timeline-toggle.has-range {
+  background: color-mix(in srgb, var(--slot-color, var(--neon-amber)) 12%, var(--bg-input));
+}
+
+/* ====== Inline Timeline Editor ====== */
+.qlb-tl-editor {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid color-mix(in srgb, var(--tl-color, var(--neon-amber)) 40%, transparent);
+  border-radius: 8px;
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  animation: fadeSlideDown 0.15s ease-out;
+}
+
+@keyframes fadeSlideDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.qlb-tl-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tl-color, var(--neon-amber));
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.qlb-tl-header span {
+  flex: 1;
+}
+
+.qlb-tl-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 3px;
+  transition: color 0.15s;
+}
+
+.qlb-tl-close:hover { color: var(--neon-red); }
+
+/* Quick set IN/OUT from playhead */
+.qlb-tl-quick {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.qlb-tl-set-btn {
+  flex: 1;
+  background: color-mix(in srgb, var(--tl-color, var(--neon-amber)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tl-color, var(--neon-amber)) 40%, transparent);
+  color: var(--tl-color, var(--neon-amber));
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 4px 0;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.qlb-tl-set-btn:hover {
+  background: color-mix(in srgb, var(--tl-color, var(--neon-amber)) 25%, transparent);
+}
+
+.qlb-tl-now {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  text-align: center;
+  min-width: 32px;
+}
+
+/* Manual time inputs */
+.qlb-tl-inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qlb-tl-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.qlb-tl-field label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.qlb-tl-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border-active);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 4px 7px;
+  border-radius: 5px;
+  outline: none;
+  width: 100%;
+  text-align: center;
+  transition: border-color 0.15s;
+}
+
+.qlb-tl-input:focus {
+  border-color: var(--tl-color, var(--neon-amber));
+  box-shadow: 0 0 6px color-mix(in srgb, var(--tl-color, var(--neon-amber)) 20%, transparent);
+}
+
+.qlb-tl-input.error {
+  border-color: var(--neon-red) !important;
+  box-shadow: 0 0 6px rgba(255, 60, 60, 0.3) !important;
+}
+
+.qlb-tl-arrow {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 14px;
+  flex-shrink: 0;
+}
+
+/* Clip info row */
+.qlb-tl-clip-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.qlb-tl-reset {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.qlb-tl-reset:hover {
+  border-color: var(--neon-red);
+  color: var(--neon-red);
+}
+
 /* ==========================================================================
    EVENT PRESET SYSTEM & PRESET MODAL
    ========================================================================== */

@@ -62,6 +62,8 @@ export interface QuickLaunchSlot {
   loop: boolean;
   color: string; // accent color for the card
   hotkey?: string; // F1–F12
+  startTime?: number; // playback start point in seconds (IN point)
+  endTime?: number;   // playback end point in seconds (OUT point)
 }
 
 export interface DeckState {
