@@ -99,6 +99,7 @@ class StorageService {
     quickLaunchSlots?: QuickLaunchSlot[];
     mixerSettings: MixerSettings;
     projectName: string;
+    categories?: import('../types/audio').CustomCategory[];
   }): Promise<void> {
     await this.init();
     if (!this.db) return;
@@ -117,7 +118,8 @@ class StorageService {
       cues: data.cues,
       soundpads: data.soundpads,
       quickLaunchSlots: data.quickLaunchSlots,
-      mixerSettings: data.mixerSettings
+      mixerSettings: data.mixerSettings,
+      categories: data.categories
     };
 
     return new Promise((resolve, reject) => {

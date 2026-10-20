@@ -13,15 +13,26 @@ export interface AudioTrack {
   isBuiltIn?: boolean;
 }
 
-export type EventCategory = 
-  | 'all'
-  | 'welcome'     // 01. Đón khách
-  | 'opening'     // 02. Khai mạc / MC Chào
-  | 'speech'      // 03. Phát biểu / Nhạc nền nhẹ
-  | 'award'       // 04. Trao giải / Vinh danh
-  | 'game'        // 05. Minigame / Hoạt náo
-  | 'ending'      // 06. Bế mạc / Chào khách
-  | 'custom';     // Tùy chỉnh
+// EventCategory is now an open string so custom IDs (e.g. 'cat_abc') work alongside built-ins
+export type EventCategory = string;
+
+export interface CustomCategory {
+  id: string;      // unique, e.g. 'welcome' or 'cat_1234'
+  label: string;   // display name
+  icon: string;    // emoji or short text
+  order: number;   // sort order
+  isBuiltIn?: boolean; // built-in categories can't be deleted
+}
+
+// Default set of built-in categories
+export const DEFAULT_CATEGORIES: CustomCategory[] = [
+  { id: 'welcome', label: '01. Đón khách',  icon: '🎪', order: 1, isBuiltIn: true },
+  { id: 'opening', label: '02. Khai mạc',   icon: '🎤', order: 2, isBuiltIn: true },
+  { id: 'speech',  label: '03. Phát biểu',  icon: '🎙️', order: 3, isBuiltIn: true },
+  { id: 'award',   label: '04. Trao giải',  icon: '🏆', order: 4, isBuiltIn: true },
+  { id: 'game',    label: '05. Minigame',   icon: '🎲', order: 5, isBuiltIn: true },
+  { id: 'ending',  label: '06. Bế mạc',    icon: '👋', order: 6, isBuiltIn: true },
+];
 
 export interface CueItem {
   id: string;
@@ -101,6 +112,7 @@ export interface ProjectData {
   soundpads: SoundPad[];
   quickLaunchSlots?: QuickLaunchSlot[];
   mixerSettings: MixerSettings;
+  categories?: CustomCategory[]; // custom + built-in category config
 }
 
 export interface EventPreset {

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import type { 
   AudioTrack, CueItem, SoundPad, DeckState, MixerSettings, EventCategory, ProjectData,
-  QuickLaunchSlot
+  QuickLaunchSlot, CustomCategory
 } from './types/audio';
+import { DEFAULT_CATEGORIES } from './types/audio';
 import { audioEngine } from './services/audioEngine';
 import type { VUMeterData } from './services/audioEngine';
 import { storageService } from './services/storage';
@@ -42,6 +43,7 @@ export const App: React.FC = () => {
 
   // Music Library
   const [tracks, setTracks] = useState<AudioTrack[]>([]);
+  const [categories, setCategories] = useState<CustomCategory[]>(DEFAULT_CATEGORIES);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState('');
 
@@ -156,6 +158,9 @@ export const App: React.FC = () => {
   const hydrateProjectData = async (data: ProjectData) => {
     setProjectName(data.projectName || 'SỰ KIỆN GALA DINNER 2026');
     setCues(data.cues || []);
+    if (data.categories && data.categories.length > 0) {
+      setCategories(data.categories);
+    }
     if (data.soundpads && data.soundpads.length > 0) {
       setSoundpads(data.soundpads);
     }
@@ -419,9 +424,52 @@ export const App: React.FC = () => {
 
   // Update track category
   const handleUpdateTrackCategory = (trackId: string, category: EventCategory) => {
-    setTracks((prev) =>
-      prev.map((t) => (t.id === trackId ? { ...t, category } : t))
-    );
+    setTracks((prev) => {
+      const updated = prev.map((t) => (t.id === trackId ? { ...t, category } : t));
+      storageService.saveProjectState({
+        projectName,
+        tracks: updated,
+        cues,
+        soundpads,
+        quickLaunchSlots,
+        mixerSettings,
+        categories
+      }).catch(console.error);
+      return updated;
+    });
+    setIsSaved(false);
+  };
+
+  // Update categories configuration (add, rename, reorder, delete)
+  const handleUpdateCategories = (newCategories: CustomCategory[]) => {
+    setCategories(newCategories);
+    storageService.saveProjectState({
+      projectName,
+      tracks,
+      cues,
+      soundpads,
+      quickLaunchSlots,
+      mixerSettings,
+      categories: newCategories
+    }).catch(console.error);
+    setIsSaved(false);
+  };
+
+  // Reassign tracks from a deleted category to another category
+  const handleReassignTracksCategory = (fromCatId: string, toCatId: string) => {
+    setTracks((prev) => {
+      const updated = prev.map((t) => (t.category === fromCatId ? { ...t, category: toCatId } : t));
+      storageService.saveProjectState({
+        projectName,
+        tracks: updated,
+        cues,
+        soundpads,
+        quickLaunchSlots,
+        mixerSettings,
+        categories
+      }).catch(console.error);
+      return updated;
+    });
     setIsSaved(false);
   };
 
@@ -721,7 +769,8 @@ export const App: React.FC = () => {
       cues,
       soundpads,
       quickLaunchSlots,
-      mixerSettings
+      mixerSettings,
+      categories
     });
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 3000);
@@ -741,7 +790,8 @@ export const App: React.FC = () => {
       cues,
       soundpads,
       quickLaunchSlots,
-      mixerSettings
+      mixerSettings,
+      categories
     };
     storageService.exportProjectFile(data);
   };
@@ -918,6 +968,7 @@ export const App: React.FC = () => {
           <div className="split-col-library">
             <LibraryManager
               tracks={tracks}
+              categories={categories}
               isImporting={isImporting}
               importProgress={importProgress}
               onAddTracks={handleAddTracks}
@@ -926,6 +977,8 @@ export const App: React.FC = () => {
               onSendToDeck={handleSendToDeck}
               onAddToCueList={handleAddToCueList}
               onUpdateTrackCategory={handleUpdateTrackCategory}
+              onUpdateCategories={handleUpdateCategories}
+              onReassignTracksCategory={handleReassignTracksCategory}
               onGenerateDemoMusic={handleGenerateDemoMusic}
             />
           </div>
@@ -962,7 +1015,8 @@ export const App: React.FC = () => {
             cues,
             soundpads,
             quickLaunchSlots,
-            mixerSettings
+            mixerSettings,
+            categories
           }}
           onLoadPreset={async (presetData) => {
             await hydrateProjectData(presetData);

@@ -2,12 +2,15 @@ import React, { useState, useRef } from 'react';
 import {
   Upload, Search, Plus, CheckSquare, Square, Trash2, ListPlus,
   Play, Pause, Music, FolderOpen, Sparkles,
-  ArrowUpDown, ArrowUp, ArrowDown, Clock, ArrowDownAZ
+  ArrowUpDown, ArrowUp, ArrowDown, Clock, ArrowDownAZ, Settings2
 } from 'lucide-react';
-import type { AudioTrack, EventCategory } from '../types/audio';
+import type { AudioTrack, EventCategory, CustomCategory } from '../types/audio';
+import { DEFAULT_CATEGORIES } from '../types/audio';
+import { CategoryManagerModal } from './CategoryManagerModal';
 
 interface LibraryManagerProps {
   tracks: AudioTrack[];
+  categories?: CustomCategory[];
   isImporting?: boolean;
   importProgress?: string;
   onAddTracks: (files: FileList | File[]) => void;
@@ -16,21 +19,14 @@ interface LibraryManagerProps {
   onSendToDeck: (track: AudioTrack, deck: 'A' | 'B') => void;
   onAddToCueList: (tracks: AudioTrack[]) => void;
   onUpdateTrackCategory: (trackId: string, category: EventCategory) => void;
+  onUpdateCategories?: (categories: CustomCategory[]) => void;
+  onReassignTracksCategory?: (fromCatId: string, toCatId: string) => void;
   onGenerateDemoMusic: () => void;
 }
 
-const CATEGORIES: { id: EventCategory; label: string; icon: string }[] = [
-  { id: 'all', label: 'Tất cả bài', icon: '🎵' },
-  { id: 'welcome', label: '01. Đón khách', icon: '🎪' },
-  { id: 'opening', label: '02. Khai mạc', icon: '🎤' },
-  { id: 'speech', label: '03. Phát biểu', icon: '🎙️' },
-  { id: 'award', label: '04. Trao giải', icon: '🏆' },
-  { id: 'game', label: '05. Minigame', icon: '🎲' },
-  { id: 'ending', label: '06. Bế mạc', icon: '👋' }
-];
-
 export const LibraryManager: React.FC<LibraryManagerProps> = ({
   tracks,
+  categories = DEFAULT_CATEGORIES,
   isImporting = false,
   importProgress = '',
   onAddTracks,
@@ -39,10 +35,13 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
   onSendToDeck,
   onAddToCueList,
   onUpdateTrackCategory,
+  onUpdateCategories,
+  onReassignTracksCategory,
   onGenerateDemoMusic
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<EventCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrackIds, setSelectedTrackIds] = useState<Set<string>>(new Set());
@@ -341,21 +340,43 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
         </div>
 
         <div className="category-pills-list">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              className={`category-pill ${selectedCategory === cat.id ? 'active' : ''}`}
-              onClick={() => setSelectedCategory(cat.id)}
-            >
-              <span>{cat.icon}</span>
-              <span>{cat.label}</span>
-              <span className="cat-count">
-                {cat.id === 'all'
-                  ? tracks.length
-                  : tracks.filter((t) => t.category === cat.id).length}
-              </span>
-            </button>
-          ))}
+          {/* "All" category pill */}
+          <button
+            className={`category-pill ${selectedCategory === 'all' ? 'active' : ''}`}
+            onClick={() => setSelectedCategory('all')}
+          >
+            <span>🎵</span>
+            <span>ALL</span>
+            <span className="cat-count">{tracks.length}</span>
+          </button>
+
+          {/* Dynamic Category Pills */}
+          {[...categories]
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+            .map((cat) => (
+              <button
+                key={cat.id}
+                className={`category-pill ${selectedCategory === cat.id ? 'active' : ''}`}
+                onClick={() => setSelectedCategory(cat.id)}
+              >
+                <span>{cat.icon}</span>
+                <span>{cat.label}</span>
+                <span className="cat-count">
+                  {tracks.filter((t) => t.category === cat.id).length}
+                </span>
+              </button>
+            ))}
+
+          {/* Manage / Add Custom Category Button */}
+          <button
+            type="button"
+            className="category-pill-manage"
+            onClick={() => setShowCategoryModal(true)}
+            title="Tự tạo, sửa tên, đổi icon hoặc sắp xếp danh mục sự kiện"
+          >
+            <Settings2 size={13} />
+            <span>Tùy chỉnh danh mục</span>
+          </button>
         </div>
       </div>
 
@@ -502,17 +523,29 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                       <select
                         className="track-cat-select"
                         value={track.category}
-                        onChange={(e) =>
-                          onUpdateTrackCategory(track.id, e.target.value as EventCategory)
-                        }
+                        onChange={(e) => {
+                          if (e.target.value === '__manage__') {
+                            setShowCategoryModal(true);
+                          } else {
+                            onUpdateTrackCategory(track.id, e.target.value as EventCategory);
+                          }
+                        }}
                       >
-                        <option value="welcome">🎪 Đón khách</option>
-                        <option value="opening">🎤 Khai mạc</option>
-                        <option value="speech">🎙️ Phát biểu</option>
-                        <option value="award">🏆 Trao giải</option>
-                        <option value="game">🎲 Minigame</option>
-                        <option value="ending">👋 Bế mạc</option>
-                        <option value="custom">🎵 Tùy chỉnh</option>
+                        {[...categories]
+                          .sort((a, b) => (a.order || 0) - (b.order || 0))
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.icon} {c.label}
+                            </option>
+                          ))}
+                        {/* Fallback if track category is not in list */}
+                        {!categories.some((c) => c.id === track.category) && (
+                          <option value={track.category}>
+                            🎵 {track.category}
+                          </option>
+                        )}
+                        <option disabled value="">──────────</option>
+                        <option value="__manage__">⚙️ Tự chỉnh danh mục...</option>
                       </select>
                     </td>
 
@@ -557,6 +590,22 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
           </table>
         )}
       </div>
+
+      {/* Custom Category Management Modal */}
+      {showCategoryModal && (
+        <CategoryManagerModal
+          isOpen={showCategoryModal}
+          onClose={() => setShowCategoryModal(false)}
+          categories={categories}
+          tracks={tracks}
+          onSaveCategories={(newCats) => {
+            if (onUpdateCategories) {
+              onUpdateCategories(newCats);
+            }
+          }}
+          onReassignTracksCategory={onReassignTracksCategory}
+        />
+      )}
     </div>
   );
 };

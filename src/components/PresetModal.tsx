@@ -16,6 +16,7 @@ interface PresetModalProps {
     soundpads: SoundPad[];
     quickLaunchSlots: QuickLaunchSlot[];
     mixerSettings: MixerSettings;
+    categories?: import('../types/audio').CustomCategory[];
   };
   onLoadPreset: (presetData: ProjectData) => Promise<void>;
 }
@@ -86,7 +87,8 @@ export const PresetModal: React.FC<PresetModalProps> = ({
           cues: currentProjectData.cues,
           soundpads: currentProjectData.soundpads,
           quickLaunchSlots: currentProjectData.quickLaunchSlots,
-          mixerSettings: currentProjectData.mixerSettings
+          mixerSettings: currentProjectData.mixerSettings,
+          categories: currentProjectData.categories
         }
       };
 
@@ -136,7 +138,8 @@ export const PresetModal: React.FC<PresetModalProps> = ({
           cues: currentProjectData.cues,
           soundpads: currentProjectData.soundpads,
           quickLaunchSlots: currentProjectData.quickLaunchSlots,
-          mixerSettings: currentProjectData.mixerSettings
+          mixerSettings: currentProjectData.mixerSettings,
+          categories: currentProjectData.categories || existing.data.categories
         }
       };
 
