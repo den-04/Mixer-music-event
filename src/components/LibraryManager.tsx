@@ -23,6 +23,7 @@ interface LibraryManagerProps {
   onUpdateCategories?: (categories: CustomCategory[]) => void;
   onReassignTracksCategory?: (fromCatId: string, toCatId: string) => void;
   onRelinkAudioFiles?: (files: FileList | File[]) => void;
+  onAssignTrackFile?: (trackId: string, file: File) => void;
   onGenerateDemoMusic: () => void;
 }
 
@@ -40,12 +41,15 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
   onUpdateCategories,
   onReassignTracksCategory,
   onRelinkAudioFiles,
+  onAssignTrackFile,
   onGenerateDemoMusic
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const relinkFolderInputRef = useRef<HTMLInputElement>(null);
   const relinkFilesInputRef = useRef<HTMLInputElement>(null);
+  const singleTrackFileRef = useRef<HTMLInputElement>(null);
+  const [selectedTrackForRelink, setSelectedTrackForRelink] = useState<AudioTrack | null>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<EventCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -142,6 +146,12 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
         setPreviewTrackId(track.id);
       }
     }
+  };
+
+  // Open file picker to link audio file for a single track
+  const handlePickFileForTrack = (track: AudioTrack) => {
+    setSelectedTrackForRelink(track);
+    singleTrackFileRef.current?.click();
   };
 
   // Drag and drop handlers
@@ -248,6 +258,22 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
           if (e.target.files && e.target.files.length > 0 && onRelinkAudioFiles) {
             onRelinkAudioFiles(Array.from(e.target.files));
             e.target.value = '';
+          }
+        }}
+      />
+
+      {/* Hidden File input for single-track audio assignment */}
+      <input
+        type="file"
+        ref={singleTrackFileRef}
+        style={{ display: 'none' }}
+        accept=".mp3,.wav,.ogg,.m4a,.flac,.aac,.wma,audio/*"
+        onChange={(e) => {
+          if (e.target.files && e.target.files[0] && selectedTrackForRelink) {
+            const file = e.target.files[0];
+            onAssignTrackFile?.(selectedTrackForRelink.id, file);
+            e.target.value = '';
+            setSelectedTrackForRelink(null);
           }
         }}
       />
@@ -445,7 +471,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
             title="Tự tạo, sửa tên, đổi icon hoặc sắp xếp danh mục sự kiện"
           >
             <Settings2 size={13} />
-            <span>Tùy chỉnh</span>
+            <span>Edit</span>
           </button>
         </div>
       </div>
@@ -577,14 +603,14 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                         className={`btn-preview-play ${isPreviewing ? 'previewing' : ''} ${!track.fileUrl ? 'btn-no-audio' : ''}`}
                         onClick={() => {
                           if (!track.fileUrl) {
-                            relinkFilesInputRef.current?.click();
+                            handlePickFileForTrack(track);
                           } else {
                             handleTogglePreview(track);
                           }
                         }}
-                        title={!track.fileUrl ? 'Bài hát chưa có file âm thanh. Bấm để nạp file nhạc' : (isPreviewing ? 'Dừng nghe thử' : 'Nghe thử trước')}
+                        title={!track.fileUrl ? 'Bài hát chưa có file âm thanh. Bấm để nạp file nhạc ngay' : (isPreviewing ? 'Dừng nghe thử' : 'Nghe thử trước')}
                       >
-                        {!track.fileUrl ? <Link size={12} /> : (isPreviewing ? <Pause size={14} /> : <Play size={14} />)}
+                        {!track.fileUrl ? <Link size={13} /> : (isPreviewing ? <Pause size={14} /> : <Play size={14} />)}
                       </button>
                     </td>
 
@@ -594,12 +620,13 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                           {track.title}
                         </span>
                         {!track.fileUrl && (
-                          <span 
-                            className="track-missing-badge" 
-                            onClick={() => relinkFilesInputRef.current?.click()}
-                            title="Bài hát chưa có file âm thanh. Bấm để nạp file nhạc"
+                          <span
+                            className="track-missing-badge"
+                            onClick={() => handlePickFileForTrack(track)}
+                            title="Bấm vào đây để chọn file nhạc từ máy tính cho bài này"
                           >
-                            ⚠️ Chưa có file
+                            <Link size={10} style={{ marginRight: 3, verticalAlign: 'middle' }} />
+                            <span>Nạp file nhạc</span>
                           </span>
                         )}
                       </div>

@@ -393,26 +393,54 @@ export const App: React.FC = () => {
     }
   };
 
+  // Assign audio file directly to a single track
+  const handleAssignTrackFile = async (trackId: string, file: File) => {
+    await storageService.saveAudioBlob(trackId, file);
+    const fileUrl = URL.createObjectURL(file);
+
+    setTracks((prev) => {
+      const updated = prev.map((t) =>
+        t.id === trackId
+          ? { ...t, fileUrl, fileName: file.name, fileType: file.type || t.fileType }
+          : t
+      );
+      storageService.saveProjectState({
+        projectName,
+        tracks: updated,
+        cues,
+        soundpads,
+        quickLaunchSlots,
+        mixerSettings,
+        categories
+      }).catch(console.error);
+      return updated;
+    });
+
+    setQuickLaunchSlots((prev) =>
+      prev.map((slot) => (slot.trackId === trackId ? { ...slot, fileUrl } : slot))
+    );
+  };
+
   // Re-link missing audio files (e.g. after loading a lightweight preset on a new device or cleared cache)
   const handleRelinkAudioFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
 
-    // Normalize string helper: removes diacritics, symbols, spaces for fuzzy matching
+    // Helper: only remove actual audio extensions, not arbitrary dots in titles!
+    const stripAudioExt = (s: string) =>
+      s.replace(/\.(mp3|wav|ogg|m4a|flac|aac|wma|webm|mp4)$/i, '').trim();
+
+    // Helper: normalize Vietnamese diacritics and symbols for robust matching
     const normalize = (s: string) =>
-      s
-        .replace(/\.[^/.]+$/, '')
-        .trim()
-        .toLowerCase()
+      stripAudioExt(s)
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'd')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
         .replace(/[^a-z0-9]/g, '');
 
-    const fileMap = new Map<string, File>();
-    for (const f of fileArray) {
-      fileMap.set(f.name.toLowerCase(), f);
-      fileMap.set(normalize(f.name), f);
-    }
+    const stripLeadingNum = (s: string) => normalize(s).replace(/^[0-9]+/, '');
 
     const missingTracks = tracks.filter((t) => !t.fileUrl);
     const restoredBlobs: { id: string; blob: Blob }[] = [];
@@ -421,11 +449,28 @@ export const App: React.FC = () => {
     const nextTracks = tracks.map((track) => {
       if (track.fileUrl) return track;
 
-      const matchedFile =
-        (track.fileName && fileMap.get(track.fileName.toLowerCase())) ||
-        fileMap.get(normalize(track.title)) ||
-        (track.fileName && fileMap.get(normalize(track.fileName))) ||
-        fileMap.get(track.title.toLowerCase());
+      const normTrackTitle = normalize(track.title);
+      const strippedTrackTitle = stripLeadingNum(track.title);
+      const origFileName = track.fileName ? track.fileName.toLowerCase() : '';
+
+      // Find matching file in selected list
+      const matchedFile = fileArray.find((f) => {
+        const lowerName = f.name.toLowerCase();
+        const normFileName = normalize(f.name);
+        const strippedFileName = stripLeadingNum(f.name);
+
+        // 1. Exact match with original filename
+        if (origFileName && lowerName === origFileName) return true;
+        // 2. Normalized title match
+        if (normFileName && normFileName === normTrackTitle) return true;
+        // 3. Match without leading numbers (e.g. "09. Nhạc kiểm phiếu" vs "9. Nhạc kiểm phiếu" vs "Nhạc kiểm phiếu")
+        if (strippedFileName && strippedTrackTitle && strippedFileName === strippedTrackTitle) return true;
+        // 4. Substring inclusion if sufficiently specific (>6 chars)
+        if (normTrackTitle.length >= 6 && normFileName.includes(normTrackTitle)) return true;
+        if (normFileName.length >= 6 && normTrackTitle.includes(normFileName)) return true;
+
+        return false;
+      });
 
       if (matchedFile) {
         matchedCount++;
@@ -470,7 +515,7 @@ export const App: React.FC = () => {
 
       alert(`✅ Đã kết nối lại thành công ${matchedCount}/${missingTracks.length} bài hát! Các bài hát đã sẵn sàng phát.`);
     } else {
-      alert(`⚠️ Không tìm thấy bài hát nào khớp tên trong số ${fileArray.length} file vừa chọn.\nVui lòng kiểm tra lại thư mục hoặc tên file!`);
+      alert(`⚠️ Không tìm thấy bài hát nào khớp tên trong số ${fileArray.length} file vừa chọn.\n\nGợi ý: Bạn có thể bấm trực tiếp vào biểu tượng 🔗 bên cạnh từng bài để chọn file nhạc chính xác cho bài đó!`);
     }
   };
 
@@ -563,7 +608,24 @@ export const App: React.FC = () => {
     if (!fileUrl) {
       const blob = await storageService.getAudioBlob(track.id);
       if (!blob) {
-        console.error(`Cannot find audio blob for track: ${track.title}`);
+        const confirmPick = window.confirm(
+          `Bài hát "${track.title}" chưa có file âm thanh trong hệ thống.\n\n` +
+          `Bạn có muốn chọn file nhạc trên máy tính cho bài này ngay bây giờ để nạp vào Deck ${deckId} không?`
+        );
+        if (confirmPick) {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.mp3,.wav,.ogg,.m4a,.flac,.aac,.wma,audio/*';
+          input.onchange = async () => {
+            if (input.files && input.files[0]) {
+              const file = input.files[0];
+              await handleAssignTrackFile(track.id, file);
+              const newUrl = URL.createObjectURL(file);
+              handleSendToDeck({ ...track, fileUrl: newUrl }, deckId, autoplay);
+            }
+          };
+          input.click();
+        }
         return;
       }
       fileUrl = URL.createObjectURL(blob);
@@ -1062,6 +1124,7 @@ export const App: React.FC = () => {
               onUpdateCategories={handleUpdateCategories}
               onReassignTracksCategory={handleReassignTracksCategory}
               onRelinkAudioFiles={handleRelinkAudioFiles}
+              onAssignTrackFile={handleAssignTrackFile}
               onGenerateDemoMusic={handleGenerateDemoMusic}
             />
           </div>
