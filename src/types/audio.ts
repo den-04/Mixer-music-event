@@ -11,6 +11,7 @@ export interface AudioTrack {
   bpm?: number;
   addedAt: number;
   isBuiltIn?: boolean;
+  fileName?: string; // original file name for auto re-linking
 }
 
 // EventCategory is now an open string so custom IDs (e.g. 'cat_abc') work alongside built-ins

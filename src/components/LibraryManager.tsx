@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import {
   Upload, Search, Plus, CheckSquare, Square, Trash2, ListPlus,
   Play, Pause, Music, FolderOpen, Sparkles,
-  ArrowUpDown, ArrowUp, ArrowDown, Clock, ArrowDownAZ, Settings2
+  ArrowUpDown, ArrowUp, ArrowDown, Clock, ArrowDownAZ, Settings2,
+  AlertTriangle, Link
 } from 'lucide-react';
 import type { AudioTrack, EventCategory, CustomCategory } from '../types/audio';
 import { DEFAULT_CATEGORIES } from '../types/audio';
@@ -21,6 +22,7 @@ interface LibraryManagerProps {
   onUpdateTrackCategory: (trackId: string, category: EventCategory) => void;
   onUpdateCategories?: (categories: CustomCategory[]) => void;
   onReassignTracksCategory?: (fromCatId: string, toCatId: string) => void;
+  onRelinkAudioFiles?: (files: FileList | File[]) => void;
   onGenerateDemoMusic: () => void;
 }
 
@@ -37,10 +39,13 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
   onUpdateTrackCategory,
   onUpdateCategories,
   onReassignTracksCategory,
+  onRelinkAudioFiles,
   onGenerateDemoMusic
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const relinkFolderInputRef = useRef<HTMLInputElement>(null);
+  const relinkFilesInputRef = useRef<HTMLInputElement>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<EventCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -217,6 +222,36 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
         }}
       />
 
+      {/* Hidden Folder input for re-linking missing audio */}
+      <input
+        type="file"
+        ref={relinkFolderInputRef}
+        style={{ display: 'none' }}
+        multiple
+        {...{ webkitdirectory: '', directory: '' }}
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0 && onRelinkAudioFiles) {
+            onRelinkAudioFiles(Array.from(e.target.files));
+            e.target.value = '';
+          }
+        }}
+      />
+
+      {/* Hidden Files input for re-linking missing audio */}
+      <input
+        type="file"
+        ref={relinkFilesInputRef}
+        style={{ display: 'none' }}
+        multiple
+        accept=".mp3,.wav,.ogg,.m4a,.flac,.aac,.wma,audio/*"
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0 && onRelinkAudioFiles) {
+            onRelinkAudioFiles(Array.from(e.target.files));
+            e.target.value = '';
+          }
+        }}
+      />
+
       {/* Importing Progress Notification */}
       {isImporting && (
         <div className="importing-overlay-banner">
@@ -276,6 +311,41 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Missing Audio Re-link Warning Banner */}
+      {tracks.some((t) => !t.fileUrl) && (
+        <div className="relink-banner">
+          <div className="relink-info-col">
+            <div className="relink-title-row">
+              <AlertTriangle size={18} className="relink-alert-icon" />
+              <strong>Có {tracks.filter((t) => !t.fileUrl).length} bài hát chưa có file âm thanh</strong>
+            </div>
+            <p className="relink-subtitle">
+              File kịch bản được tối ưu siêu nhẹ (~30 KB). Bạn chỉ cần chọn thư mục nhạc trên máy tính để hệ thống tự động kết nối lại âm thanh toàn bộ bài hát ngay lập tức!
+            </p>
+          </div>
+          <div className="relink-btns-row">
+            <button
+              type="button"
+              className="btn-relink-folder"
+              onClick={() => relinkFolderInputRef.current?.click()}
+              title="Chọn thư mục chứa nhạc trên máy để tự động khớp lại toàn bộ bài hát"
+            >
+              <FolderOpen size={16} />
+              <span>📂 CHỌN THƯ MỤC NHẠC ĐỂ KHỚP LẠI</span>
+            </button>
+            <button
+              type="button"
+              className="btn-relink-files"
+              onClick={() => relinkFilesInputRef.current?.click()}
+              title="Hoặc chọn các file nhạc lẻ trên máy"
+            >
+              <Upload size={14} />
+              <span>Chọn file lẻ</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search & Category Filter Pills & Sort Options */}
       <div className="library-filter-row">
@@ -375,7 +445,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
             title="Tự tạo, sửa tên, đổi icon hoặc sắp xếp danh mục sự kiện"
           >
             <Settings2 size={13} />
-            <span>Tùy chỉnh danh mục</span>
+            <span>Tùy chỉnh</span>
           </button>
         </div>
       </div>
@@ -504,18 +574,35 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
 
                     <td className="td-play">
                       <button
-                        className={`btn-preview-play ${isPreviewing ? 'previewing' : ''}`}
-                        onClick={() => handleTogglePreview(track)}
-                        title={isPreviewing ? 'Dừng nghe thử' : 'Nghe thử trước'}
+                        className={`btn-preview-play ${isPreviewing ? 'previewing' : ''} ${!track.fileUrl ? 'btn-no-audio' : ''}`}
+                        onClick={() => {
+                          if (!track.fileUrl) {
+                            relinkFilesInputRef.current?.click();
+                          } else {
+                            handleTogglePreview(track);
+                          }
+                        }}
+                        title={!track.fileUrl ? 'Bài hát chưa có file âm thanh. Bấm để nạp file nhạc' : (isPreviewing ? 'Dừng nghe thử' : 'Nghe thử trước')}
                       >
-                        {isPreviewing ? <Pause size={14} /> : <Play size={14} />}
+                        {!track.fileUrl ? <Link size={12} /> : (isPreviewing ? <Pause size={14} /> : <Play size={14} />)}
                       </button>
                     </td>
 
                     <td className="td-title">
-                      <span className="track-title-text" title={track.title}>
-                        {track.title}
-                      </span>
+                      <div className="track-title-wrap">
+                        <span className="track-title-text" title={track.title}>
+                          {track.title}
+                        </span>
+                        {!track.fileUrl && (
+                          <span 
+                            className="track-missing-badge" 
+                            onClick={() => relinkFilesInputRef.current?.click()}
+                            title="Bài hát chưa có file âm thanh. Bấm để nạp file nhạc"
+                          >
+                            ⚠️ Chưa có file
+                          </span>
+                        )}
+                      </div>
                       {track.artist && <span className="track-artist-text">{track.artist}</span>}
                     </td>
 

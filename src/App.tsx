@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import confetti from 'canvas-confetti';
-import type { 
+import type {
   AudioTrack, CueItem, SoundPad, DeckState, MixerSettings, EventCategory, ProjectData,
   QuickLaunchSlot, CustomCategory
 } from './types/audio';
@@ -63,7 +63,7 @@ export const App: React.FC = () => {
       label: '',
       volume: 0.9,
       loop: false,
-      color: ['#00f2fe','#ff6d00','#00e676','#ffd600','#d500f9','#ff1744','#7c4dff','#00b0ff','#ff6f00','#64dd17','#f50057','#00bcd4'][i],
+      color: ['#00f2fe', '#ff6d00', '#00e676', '#ffd600', '#d500f9', '#ff1744', '#7c4dff', '#00b0ff', '#ff6f00', '#64dd17', '#f50057', '#00bcd4'][i],
     }))
   );
   const [middleTab, setMiddleTab] = useState<'soundboard' | 'quicklaunch'>('soundboard');
@@ -322,6 +322,7 @@ export const App: React.FC = () => {
         preparedTracks.push({
           id: trackId,
           title: file.name.replace(/\.[^/.]+$/, ''), // remove extension
+          fileName: file.name,
           duration: 180, // initial estimate, will be updated in background
           fileUrl,
           fileType: file.type,
@@ -389,6 +390,87 @@ export const App: React.FC = () => {
     } finally {
       setIsImporting(false);
       setImportProgress('');
+    }
+  };
+
+  // Re-link missing audio files (e.g. after loading a lightweight preset on a new device or cleared cache)
+  const handleRelinkAudioFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    // Normalize string helper: removes diacritics, symbols, spaces for fuzzy matching
+    const normalize = (s: string) =>
+      s
+        .replace(/\.[^/.]+$/, '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '');
+
+    const fileMap = new Map<string, File>();
+    for (const f of fileArray) {
+      fileMap.set(f.name.toLowerCase(), f);
+      fileMap.set(normalize(f.name), f);
+    }
+
+    const missingTracks = tracks.filter((t) => !t.fileUrl);
+    const restoredBlobs: { id: string; blob: Blob }[] = [];
+    let matchedCount = 0;
+
+    const nextTracks = tracks.map((track) => {
+      if (track.fileUrl) return track;
+
+      const matchedFile =
+        (track.fileName && fileMap.get(track.fileName.toLowerCase())) ||
+        fileMap.get(normalize(track.title)) ||
+        (track.fileName && fileMap.get(normalize(track.fileName))) ||
+        fileMap.get(track.title.toLowerCase());
+
+      if (matchedFile) {
+        matchedCount++;
+        restoredBlobs.push({ id: track.id, blob: matchedFile });
+        const fileUrl = URL.createObjectURL(matchedFile);
+        return {
+          ...track,
+          fileUrl,
+          fileName: matchedFile.name,
+          fileType: matchedFile.type || track.fileType
+        };
+      }
+      return track;
+    });
+
+    if (restoredBlobs.length > 0) {
+      await storageService.saveAudioBlobsBatch(restoredBlobs);
+      setTracks(nextTracks);
+
+      // Re-hydrate quickLaunchSlots with restored blobs/urls
+      setQuickLaunchSlots((prev) =>
+        prev.map((slot) => {
+          if (!slot.trackId || slot.fileUrl) return slot;
+          const matched = nextTracks.find((t) => t.id === slot.trackId);
+          if (matched && matched.fileUrl) {
+            return { ...slot, fileUrl: matched.fileUrl };
+          }
+          return slot;
+        })
+      );
+
+      // Save project state
+      await storageService.saveProjectState({
+        projectName,
+        tracks: nextTracks,
+        cues,
+        soundpads,
+        quickLaunchSlots,
+        mixerSettings,
+        categories
+      });
+
+      alert(`✅ Đã kết nối lại thành công ${matchedCount}/${missingTracks.length} bài hát! Các bài hát đã sẵn sàng phát.`);
+    } else {
+      alert(`⚠️ Không tìm thấy bài hát nào khớp tên trong số ${fileArray.length} file vừa chọn.\nVui lòng kiểm tra lại thư mục hoặc tên file!`);
     }
   };
 
@@ -979,6 +1061,7 @@ export const App: React.FC = () => {
               onUpdateTrackCategory={handleUpdateTrackCategory}
               onUpdateCategories={handleUpdateCategories}
               onReassignTracksCategory={handleReassignTracksCategory}
+              onRelinkAudioFiles={handleRelinkAudioFiles}
               onGenerateDemoMusic={handleGenerateDemoMusic}
             />
           </div>

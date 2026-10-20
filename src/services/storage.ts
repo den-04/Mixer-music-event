@@ -240,29 +240,36 @@ class StorageService {
     return new Blob([byteNums], { type: mimeType });
   }
 
-  // Export project to a self-contained .eventmix file (audio embedded as base64)
-  async exportProjectFile(projectData: ProjectData): Promise<void> {
-    // Build audioData map: trackId -> { base64, mimeType }
-    const audioData: Record<string, { base64: string; mimeType: string }> = {};
+  // Export project to .eventmix file
+  // Default is lightweight script file (~30KB). Set includeAudio=true only if user wants all blobs embedded.
+  async exportProjectFile(projectData: ProjectData, includeAudio = false): Promise<void> {
+    let exportPayload: Record<string, unknown> = { ...projectData };
 
-    for (const track of projectData.tracks) {
-      const blob = await this.getAudioBlob(track.id);
-      if (blob) {
-        audioData[track.id] = {
-          base64: await this.blobToBase64(blob),
-          mimeType: blob.type || track.fileType || 'audio/mpeg',
-        };
+    if (includeAudio) {
+      // Build audioData map only if explicitly requested
+      const audioData: Record<string, { base64: string; mimeType: string }> = {};
+
+      for (const track of projectData.tracks) {
+        const blob = await this.getAudioBlob(track.id);
+        if (blob) {
+          audioData[track.id] = {
+            base64: await this.blobToBase64(blob),
+            mimeType: blob.type || track.fileType || 'audio/mpeg',
+          };
+        }
       }
+      exportPayload = { ...projectData, audioData };
     }
 
-    const exportPayload = { ...projectData, audioData };
     const jsonStr = JSON.stringify(exportPayload, null, 2);
     const fileBlob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(fileBlob);
     const link = document.createElement('a');
     const safeName = (projectData.projectName || 'kich-ban-su-kien').replace(/[^a-z0-9_-]/gi, '_');
     link.href = url;
-    link.download = `${safeName}_${new Date().toISOString().slice(0, 10)}.eventmix`;
+    link.download = includeAudio
+      ? `${safeName}_full_kem_nhac_${new Date().toISOString().slice(0, 10)}.eventmix`
+      : `${safeName}_${new Date().toISOString().slice(0, 10)}.eventmix`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
