@@ -7,6 +7,7 @@ interface SoundboardProps {
   pads: SoundPad[];
   tracks: AudioTrack[];
   activePadSlot: number | null;
+  activePadIds?: string[];
   onTriggerPad: (pad: SoundPad) => void;
   onStopAllPads: () => void;
   onUpdatePad: (updated: SoundPad) => void;
@@ -16,6 +17,7 @@ export const Soundboard: React.FC<SoundboardProps> = ({
   pads,
   tracks,
   activePadSlot,
+  activePadIds = [],
   onTriggerPad,
   onStopAllPads,
   onUpdatePad
@@ -28,7 +30,7 @@ export const Soundboard: React.FC<SoundboardProps> = ({
         <div className="soundboard-title">
           <Radio size={16} className="pulsing-icon" />
           <span>BÀN HIỆU ỨNG TỨC THỜI (SOUNDBOARD / JINGLE PADS)</span>
-          <span className="soundboard-hint">Bấm chuột hoặc gõ phím tắt [1..9, 0] để kích hoạt</span>
+          <span className="soundboard-hint">Bấm phím [1..9, 0, -, =] lần 1 để PHÁT, lần 2 để DỪNG</span>
         </div>
 
         <button
@@ -43,21 +45,27 @@ export const Soundboard: React.FC<SoundboardProps> = ({
 
       <div className="soundpads-grid">
         {pads.map((pad) => {
-          const isActive = activePadSlot === pad.slot;
+          const isActive = activePadIds.includes(pad.id) || activePadSlot === pad.slot;
           return (
             <div
               key={pad.id}
               className={`soundpad-btn ${isActive ? 'active-playing' : ''}`}
               style={{
                 borderColor: pad.color,
-                boxShadow: isActive ? `0 0 16px ${pad.color}` : 'none'
+                boxShadow: isActive ? `0 0 18px ${pad.color}` : 'none'
               }}
               onClick={() => onTriggerPad(pad)}
+              title={isActive ? `Đang phát — Bấm để DỪNG (${pad.hotkey})` : `Bấm để PHÁT (${pad.hotkey})`}
             >
               <div className="soundpad-top-row">
                 <span className="soundpad-hotkey" style={{ backgroundColor: pad.color }}>
                   {pad.hotkey}
                 </span>
+                {isActive && (
+                  <span className="soundpad-playing-badge" style={{ color: pad.color }}>
+                    ⏹ DỪNG
+                  </span>
+                )}
                 <button
                   className="soundpad-edit-trigger"
                   title="Tùy chỉnh nút này (đổi âm thanh, màu, phím tắt)"

@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Play, Pause, Square, Volume2, Repeat, Trash2,
   Music, Plus, Download, Star, Scissors, X, ChevronDown, ChevronUp
@@ -118,13 +118,16 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       const idx = HOTKEYS.indexOf(e.key);
       if (idx === -1) return;
+      e.preventDefault();
       const slot = slots.find(s => s.slot === idx);
-      if (slot && slot.fileUrl) { e.preventDefault(); handleTogglePlay(slot); }
+      if (slot && slot.fileUrl) {
+        handleTogglePlay(slot);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slots]);
+  }, [slots, playStates]);
 
   const handleTogglePlay = (slot: QuickLaunchSlot) => {
     if (!slot.fileUrl) return;
@@ -133,6 +136,12 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
     const inPt = slot.startTime ?? 0;
     if (state?.isPlaying) {
       audio.pause();
+      audio.currentTime = inPt;
+      setPlayStates(prev => new Map(prev).set(slot.id, {
+        isPlaying: false,
+        currentTime: inPt,
+        duration: audio.duration || 0,
+      }));
     } else {
       const outPt = slot.endTime ?? audio.duration;
       if (audio.ended || audio.currentTime >= (outPt || audio.duration) - 0.1 || audio.currentTime < inPt) {

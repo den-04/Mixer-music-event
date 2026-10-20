@@ -32,6 +32,7 @@ export class AudioEngine {
 
   // Soundpads sub-mix
   private soundpadsBus: GainNode | null = null;
+  private activePadControllers: Map<string, { stop: () => void }> = new Map();
 
   // Master bus
   private duckingGain: GainNode | null = null;
@@ -395,57 +396,132 @@ export class AudioEngine {
     return this.duckingLevel;
   }
 
-  // Trigger Soundpad (either built-in procedural FX or audio file)
+  // Active Soundpad controllers map (padId -> stop function)
+  private activePadControllers: Map<string, { stop: () => void }> = new Map();
+
+  // Check if a specific Soundpad is currently playing
+  public isPadPlaying(padId: string): boolean {
+    return this.activePadControllers.has(padId);
+  }
+
+  // Stop a specific Soundpad immediately
+  public stopSoundpad(padId: string): boolean {
+    const ctrl = this.activePadControllers.get(padId);
+    if (ctrl) {
+      ctrl.stop();
+      this.activePadControllers.delete(padId);
+      if (this.activePadControllers.size === 0) {
+        this.setDucking(false);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // Stop all currently playing Soundpads
+  public stopAllSoundpads(): void {
+    this.activePadControllers.forEach((ctrl) => {
+      try {
+        ctrl.stop();
+      } catch {}
+    });
+    this.activePadControllers.clear();
+    this.setDucking(false);
+  }
+
+  // Trigger Soundpad (Toggle play/stop: 1st press plays, 2nd press stops)
   public playSoundpad(
+    padId: string,
     soundType: 'builtin' | 'custom',
     identifier: string,
     volume = 0.9,
-    ducking = false
-  ) {
+    ducking = false,
+    onEnded?: () => void
+  ): boolean {
     this.ensureContext();
-    if (!this.ctx || !this.soundpadsBus) return;
+    if (!this.ctx || !this.soundpadsBus) return false;
+
+    // TOGGLE: If this pad is already playing, stop it!
+    if (this.isPadPlaying(padId)) {
+      this.stopSoundpad(padId);
+      onEnded?.();
+      return false; // stopped
+    }
 
     if (ducking) {
       this.setDucking(true);
     }
 
-    if (soundType === 'builtin' && this.synthesizer) {
-      const padGain = this.ctx.createGain();
-      padGain.gain.value = volume;
-      padGain.connect(this.soundpadsBus);
+    const padGain = this.ctx.createGain();
+    padGain.gain.value = volume;
+    padGain.connect(this.soundpadsBus);
 
+    let stopFn = () => {
+      if (this.ctx) {
+        padGain.gain.setValueAtTime(padGain.gain.value, this.ctx.currentTime);
+        padGain.gain.linearRampToValueAtTime(0.0001, this.ctx.currentTime + 0.05);
+      }
+      setTimeout(() => {
+        try {
+          padGain.disconnect();
+        } catch {}
+      }, 60);
+    };
+
+    if (soundType === 'builtin' && this.synthesizer) {
+      let durationMs = 3000;
       switch (identifier) {
         case 'applause':
           this.synthesizer.playApplause(padGain, volume);
+          durationMs = 4500;
           break;
         case 'drumroll':
           this.synthesizer.playDrumroll(padGain, volume);
+          durationMs = 4200;
           break;
         case 'fanfare':
           this.synthesizer.playFanfare(padGain, volume);
+          durationMs = 3500;
           break;
         case 'countdown':
           this.synthesizer.playCountdown(padGain, volume);
+          durationMs = 5500;
           break;
         case 'correct':
           this.synthesizer.playCorrect(padGain, volume);
+          durationMs = 900;
           break;
         case 'wrong':
           this.synthesizer.playWrong(padGain, volume);
+          durationMs = 700;
           break;
         case 'jackpot':
           this.synthesizer.playJackpot(padGain, volume);
+          durationMs = 3200;
           break;
         case 'gong':
           this.synthesizer.playGong(padGain, volume);
+          durationMs = 3500;
           break;
         default:
           this.synthesizer.playFanfare(padGain, volume);
+          durationMs = 3500;
       }
 
-      if (ducking) {
-        setTimeout(() => this.setDucking(false), 3000);
-      }
+      const timerId = setTimeout(() => {
+        this.activePadControllers.delete(padId);
+        if (this.activePadControllers.size === 0 && ducking) {
+          this.setDucking(false);
+        }
+        onEnded?.();
+      }, durationMs);
+
+      const origStop = stopFn;
+      stopFn = () => {
+        clearTimeout(timerId);
+        origStop();
+        onEnded?.();
+      };
     } else if (soundType === 'custom' && identifier) {
       // One-shot HTMLAudioElement connected to soundpads bus
       const soundAudio = new Audio(identifier);
@@ -453,20 +529,30 @@ export class AudioEngine {
         soundAudio.crossOrigin = 'anonymous';
       }
       const node = this.ctx.createMediaElementSource(soundAudio);
-      const padGain = this.ctx.createGain();
-      padGain.gain.value = volume;
-
       node.connect(padGain);
-      padGain.connect(this.soundpadsBus);
 
       soundAudio.play().catch(console.error);
 
       soundAudio.addEventListener('ended', () => {
-        if (ducking) {
+        this.activePadControllers.delete(padId);
+        if (this.activePadControllers.size === 0 && ducking) {
           this.setDucking(false);
         }
+        onEnded?.();
       });
+
+      stopFn = () => {
+        soundAudio.pause();
+        soundAudio.currentTime = 0;
+        try {
+          padGain.disconnect();
+        } catch {}
+        onEnded?.();
+      };
     }
+
+    this.activePadControllers.set(padId, { stop: stopFn });
+    return true; // started playing
   }
 
   // VU Meter Loop

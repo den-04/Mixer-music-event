@@ -1673,10 +1673,32 @@ body {
   background: #0f1524;
 }
 
-.soundpad-btn:active,
-.soundpad-btn.active-playing {
+.soundpad-btn:active {
   transform: scale(0.96);
   background: #1a253d;
+}
+
+@keyframes padActiveGlow {
+  0% { transform: scale(0.98); filter: brightness(1.05); }
+  50% { transform: scale(1.01); filter: brightness(1.3); }
+  100% { transform: scale(0.98); filter: brightness(1.05); }
+}
+
+.soundpad-btn.active-playing {
+  background: #1b253b;
+  animation: padActiveGlow 1.2s infinite ease-in-out;
+}
+
+.soundpad-playing-badge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+  animation: pulse 1s infinite alternate;
 }
 
 .soundpad-top-row {

@@ -10,7 +10,7 @@ export const HotkeysModal: React.FC<HotkeysModalProps> = ({ onClose }) => {
     {
       title: 'KỊCH BẢN & PHÁT NHẠC',
       items: [
-        { key: 'SPACEBAR', desc: 'Bấm "GO" sang mục kịch bản tiếp theo / Play-Pause' },
+        { key: 'SPACEBAR', desc: 'Bấm lần 1 để PHÁT, bấm lần 2 để DỪNG / Tiếp tục kịch bản' },
         { key: 'F', desc: 'FADE OUT tức thời trong 2 giây (khi MC bắt đầu nói)' },
         { key: 'D', desc: 'Bật/tắt chế độ MC Ducking (-75% âm lượng nền)' },
         { key: 'M', desc: 'MUTE KHẨN CẤP (cắt toàn bộ âm thanh ngay lập tức)' }
@@ -19,8 +19,14 @@ export const HotkeysModal: React.FC<HotkeysModalProps> = ({ onClose }) => {
     {
       title: 'BÀN HIỆU ỨNG TỨC THÌ (SOUNDBOARD)',
       items: [
-        { key: '1 .. 9, 0', desc: 'Kích hoạt ngay các Soundpad 1 đến 10 (Vỗ tay, Kèn, Trống...)' },
+        { key: '1 .. 9, 0, -, =', desc: 'Bấm lần 1 để PHÁT, bấm lần 2 để DỪNG ngay hiệu ứng' },
         { key: 'ESC', desc: 'Dừng âm thanh tất cả các Soundpad đang kêu' }
+      ]
+    },
+    {
+      title: 'BÀN NHẠC QUAN TRỌNG (QUICK LAUNCH)',
+      items: [
+        { key: 'F1 .. F12', desc: 'Bấm lần 1 để PHÁT nhạc quan trọng, bấm lần 2 để DỪNG ngay' }
       ]
     },
     {

@@ -54,6 +54,7 @@ export const App: React.FC = () => {
   // Soundpads
   const [soundpads, setSoundpads] = useState<SoundPad[]>(DEFAULT_SOUNDPADS);
   const [activePadSlot, setActivePadSlot] = useState<number | null>(null);
+  const [activePadIds, setActivePadIds] = useState<string[]>([]);
 
   // Quick Launch Board (important tracks)
   const [quickLaunchSlots, setQuickLaunchSlots] = useState<QuickLaunchSlot[]>(
@@ -766,8 +767,13 @@ export const App: React.FC = () => {
 
   // Soundpad Triggers
   const handleTriggerPad = (pad: SoundPad) => {
-    setActivePadSlot(pad.slot);
-    setTimeout(() => setActivePadSlot(null), 800);
+    // If already playing, pressing again STOPS it immediately!
+    if (activePadIds.includes(pad.id) || activePadSlot === pad.slot || audioEngine.isPadPlaying(pad.id)) {
+      audioEngine.stopSoundpad(pad.id);
+      setActivePadIds((prev) => prev.filter((id) => id !== pad.id));
+      setActivePadSlot(null);
+      return;
+    }
 
     let identifier = pad.builtinId || 'applause';
     if (pad.soundType === 'custom' && pad.trackId) {
@@ -777,7 +783,26 @@ export const App: React.FC = () => {
       }
     }
 
-    audioEngine.playSoundpad(pad.soundType, identifier, pad.volume, pad.ducking);
+    setActivePadSlot(pad.slot);
+    setActivePadIds((prev) => (prev.includes(pad.id) ? prev : [...prev, pad.id]));
+
+    const started = audioEngine.playSoundpad(
+      pad.id,
+      pad.soundType,
+      identifier,
+      pad.volume,
+      pad.ducking,
+      () => {
+        setActivePadIds((prev) => prev.filter((id) => id !== pad.id));
+        setActivePadSlot((curr) => (curr === pad.slot ? null : curr));
+      }
+    );
+
+    if (!started) {
+      setActivePadIds((prev) => prev.filter((id) => id !== pad.id));
+      setActivePadSlot(null);
+      return;
+    }
 
     // If applause or fanfare, trigger party confetti!
     if (pad.builtinId === 'applause' || pad.builtinId === 'fanfare') {
@@ -790,8 +815,9 @@ export const App: React.FC = () => {
   };
 
   const handleStopAllPads = () => {
+    audioEngine.stopAllSoundpads();
+    setActivePadIds([]);
     setActivePadSlot(null);
-    audioEngine.setDucking(false);
   };
 
   const handleUpdatePad = (updated: SoundPad) => {
@@ -964,7 +990,22 @@ export const App: React.FC = () => {
 
       if (e.code === 'Space') {
         e.preventDefault();
-        handleGoNextCue();
+        // Toggle play/pause: 1st press plays, 2nd press stops/pauses
+        if (deckA.isPlaying || !audioEngine.audioA.paused) {
+          handleDeckPause('A');
+        } else if (deckB.isPlaying || !audioEngine.audioB.paused) {
+          handleDeckPause('B');
+        } else if (deckA.track && deckA.currentTime > 0) {
+          handleDeckPlay('A');
+        } else if (deckB.track && deckB.currentTime > 0) {
+          handleDeckPlay('B');
+        } else if (cues.length > 0) {
+          handleGoNextCue();
+        } else if (deckA.track) {
+          handleDeckPlay('A');
+        } else if (deckB.track) {
+          handleDeckPlay('B');
+        }
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
         handleFadeOutAll();
@@ -996,7 +1037,7 @@ export const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [soundpads, handleGoNextCue]);
+  }, [soundpads, handleGoNextCue, activePadIds, activePadSlot, deckA.isPlaying, deckB.isPlaying, deckA.track, deckB.track, deckA.currentTime, deckB.currentTime]);
 
   return (
     <div className="eventmix-app">
@@ -1091,6 +1132,7 @@ export const App: React.FC = () => {
               pads={soundpads}
               tracks={tracks}
               activePadSlot={activePadSlot}
+              activePadIds={activePadIds}
               onTriggerPad={handleTriggerPad}
               onStopAllPads={handleStopAllPads}
               onUpdatePad={handleUpdatePad}
