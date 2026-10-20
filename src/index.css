@@ -66,13 +66,16 @@ body {
   width: 7px;
   height: 7px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--bg-app);
 }
+
 ::-webkit-scrollbar-thumb {
   background: #232d42;
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #344363;
 }
@@ -120,8 +123,15 @@ body {
 }
 
 @keyframes pulseLogo {
-  0% { transform: scale(1); filter: drop-shadow(0 0 6px var(--neon-cyan)); }
-  100% { transform: scale(1.06); filter: drop-shadow(0 0 14px var(--neon-cyan)); }
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 6px var(--neon-cyan));
+  }
+
+  100% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 14px var(--neon-cyan));
+  }
 }
 
 .logo-text-col {
@@ -416,13 +426,25 @@ body {
 }
 
 @keyframes blinkLive {
-  0% { opacity: 0.5; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 @keyframes blinkReady {
-  0% { opacity: 0.4; transform: scale(0.8); }
-  100% { opacity: 1; transform: scale(1.1); }
+  0% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
 }
 
 .deck-status-text {
@@ -505,8 +527,13 @@ body {
 }
 
 @keyframes spinDisc {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .deck-track-meta {
@@ -690,8 +717,13 @@ body {
 }
 
 @keyframes pulsePlayReady {
-  0% { box-shadow: 0 0 8px rgba(255, 214, 0, 0.2); }
-  100% { box-shadow: 0 0 22px rgba(255, 214, 0, 0.45); }
+  0% {
+    box-shadow: 0 0 8px rgba(255, 214, 0, 0.2);
+  }
+
+  100% {
+    box-shadow: 0 0 22px rgba(255, 214, 0, 0.45);
+  }
 }
 
 .btn-deck-play.playing {
@@ -989,9 +1021,17 @@ body {
   font-weight: 700;
 }
 
-.cf-label-a { color: var(--neon-cyan); }
-.cf-label-center { color: var(--text-muted); }
-.cf-label-b { color: var(--neon-orange); }
+.cf-label-a {
+  color: var(--neon-cyan);
+}
+
+.cf-label-center {
+  color: var(--text-muted);
+}
+
+.cf-label-b {
+  color: var(--neon-orange);
+}
 
 .crossfader-track-wrap {
   background: #000;
@@ -1051,8 +1091,15 @@ body {
   color: #fff;
 }
 
-.btn-autofade-a:hover { border-color: var(--neon-cyan); color: var(--neon-cyan); }
-.btn-autofade-b:hover { border-color: var(--neon-orange); color: var(--neon-orange); }
+.btn-autofade-a:hover {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+}
+
+.btn-autofade-b:hover {
+  border-color: var(--neon-orange);
+  color: var(--neon-orange);
+}
 
 .master-output-col {
   display: flex;
@@ -1517,8 +1564,13 @@ body {
 }
 
 @keyframes pulseMute {
-  0% { opacity: 0.8; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 /* ==========================================================================
@@ -1797,8 +1849,13 @@ body {
 }
 
 @keyframes pulseGlow {
-  0% { box-shadow: 0 0 6px rgba(0, 242, 254, 0.2); }
-  100% { box-shadow: 0 0 16px rgba(0, 242, 254, 0.5); }
+  0% {
+    box-shadow: 0 0 6px rgba(0, 242, 254, 0.2);
+  }
+
+  100% {
+    box-shadow: 0 0 16px rgba(0, 242, 254, 0.5);
+  }
 }
 
 .importing-spinner {
@@ -1811,7 +1868,9 @@ body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .btn-secondary.btn-demo-music {
@@ -2200,7 +2259,8 @@ body {
   background: rgba(0, 242, 254, 0.08);
 }
 
-.td-select, .th-select {
+.td-select,
+.th-select {
   width: 32px;
   cursor: pointer;
 }
@@ -2277,11 +2337,25 @@ body {
   transition: var(--transition-fast);
 }
 
-.btn-load-deck-a { color: var(--neon-cyan); border-color: rgba(0, 242, 254, 0.3); }
-.btn-load-deck-a:hover { background: var(--neon-cyan); color: #000; }
+.btn-load-deck-a {
+  color: var(--neon-cyan);
+  border-color: rgba(0, 242, 254, 0.3);
+}
 
-.btn-load-deck-b { color: var(--neon-orange); border-color: rgba(255, 109, 0, 0.3); }
-.btn-load-deck-b:hover { background: var(--neon-orange); color: #000; }
+.btn-load-deck-a:hover {
+  background: var(--neon-cyan);
+  color: #000;
+}
+
+.btn-load-deck-b {
+  color: var(--neon-orange);
+  border-color: rgba(255, 109, 0, 0.3);
+}
+
+.btn-load-deck-b:hover {
+  background: var(--neon-orange);
+  color: #000;
+}
 
 .btn-add-single-cue {
   display: flex;
@@ -2913,10 +2987,15 @@ body {
 }
 
 @media (max-width: 1400px) {
-  .qlb-grid { grid-template-columns: repeat(4, 1fr); }
+  .qlb-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
+
 @media (max-width: 900px) {
-  .qlb-grid { grid-template-columns: repeat(3, 1fr); }
+  .qlb-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 /* Individual Slot */
@@ -3015,7 +3094,7 @@ body {
 /* Progress bar */
 .qlb-progress-bar {
   height: 3px;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -3109,7 +3188,7 @@ body {
   height: 3px;
   -webkit-appearance: none;
   appearance: none;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 2px;
   cursor: pointer;
 }
@@ -3206,7 +3285,7 @@ body {
 .qlb-picker-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
   z-index: 9000;
   display: flex;
@@ -3225,7 +3304,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
 }
 
 .qlb-picker-header {
@@ -3271,7 +3350,7 @@ body {
 
 .qlb-picker-search:focus {
   border-color: var(--neon-amber);
-  box-shadow: 0 0 10px rgba(255,214,0,0.15);
+  box-shadow: 0 0 10px rgba(255, 214, 0, 0.15);
 }
 
 .qlb-picker-list {
@@ -3370,7 +3449,7 @@ body {
 .qlb-scrubber-bg {
   position: absolute;
   inset: 4px 0;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 3px;
   pointer-events: none;
 }
@@ -3467,7 +3546,7 @@ body {
 
 /* ====== Inline Timeline Editor ====== */
 .qlb-tl-editor {
-  background: rgba(0,0,0,0.3);
+  background: rgba(0, 0, 0, 0.3);
   border: 1px solid color-mix(in srgb, var(--tl-color, var(--neon-amber)) 40%, transparent);
   border-radius: 8px;
   padding: 9px 10px;
@@ -3478,8 +3557,15 @@ body {
 }
 
 @keyframes fadeSlideDown {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .qlb-tl-header {
@@ -3508,7 +3594,9 @@ body {
   transition: color 0.15s;
 }
 
-.qlb-tl-close:hover { color: var(--neon-red); }
+.qlb-tl-close:hover {
+  color: var(--neon-red);
+}
 
 /* Quick set IN/OUT from playhead */
 .qlb-tl-quick {
@@ -4777,3 +4865,10 @@ body {
   font-weight: 800;
 }
 
+
+.btn-close-modal {
+  background: rgb(255, 97, 97) !important;
+  border-radius: 40%;
+  color: #252525;
+  align-items: center;
+}
