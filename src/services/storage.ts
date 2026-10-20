@@ -214,11 +214,49 @@ class StorageService {
     });
   }
 
-  // Export project to a downloadable .eventmix JSON file
-  exportProjectFile(projectData: ProjectData): void {
-    const jsonStr = JSON.stringify(projectData, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+  // Helper: Blob → base64 string
+  private blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        // dataUrl = "data:<type>;base64,<data>" – strip prefix
+        resolve(dataUrl.split(',')[1]);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // Helper: base64 string → Blob
+  private base64ToBlob(b64: string, mimeType: string): Blob {
+    const byteChars = atob(b64);
+    const byteNums = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNums[i] = byteChars.charCodeAt(i);
+    }
+    return new Blob([byteNums], { type: mimeType });
+  }
+
+  // Export project to a self-contained .eventmix file (audio embedded as base64)
+  async exportProjectFile(projectData: ProjectData): Promise<void> {
+    // Build audioData map: trackId -> { base64, mimeType }
+    const audioData: Record<string, { base64: string; mimeType: string }> = {};
+
+    for (const track of projectData.tracks) {
+      const blob = await this.getAudioBlob(track.id);
+      if (blob) {
+        audioData[track.id] = {
+          base64: await this.blobToBase64(blob),
+          mimeType: blob.type || track.fileType || 'audio/mpeg',
+        };
+      }
+    }
+
+    const exportPayload = { ...projectData, audioData };
+    const jsonStr = JSON.stringify(exportPayload, null, 2);
+    const fileBlob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(fileBlob);
     const link = document.createElement('a');
     const safeName = (projectData.projectName || 'kich-ban-su-kien').replace(/[^a-z0-9_-]/gi, '_');
     link.href = url;
@@ -229,25 +267,36 @@ class StorageService {
     URL.revokeObjectURL(url);
   }
 
-  // Parse imported .eventmix or .json file
+  // Parse imported .eventmix / .json file, restore audio blobs to IndexedDB
   async parseProjectFile(file: File): Promise<ProjectData> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
+    const content = await file.text();
+    const parsed = JSON.parse(content) as ProjectData & {
+      audioData?: Record<string, { base64: string; mimeType: string }>;
+    };
+
+    if (!parsed.tracks || !parsed.cues) {
+      throw new Error('Định dạng file kịch bản không hợp lệ.');
+    }
+
+    // Restore embedded audio blobs to IndexedDB
+    if (parsed.audioData) {
+      const restoreItems: { id: string; blob: Blob }[] = [];
+      for (const [trackId, { base64, mimeType }] of Object.entries(parsed.audioData)) {
         try {
-          const content = e.target?.result as string;
-          const parsed = JSON.parse(content) as ProjectData;
-          if (!parsed.tracks || !parsed.cues) {
-            throw new Error('Định dạng file kịch bản không hợp lệ.');
-          }
-          resolve(parsed);
-        } catch (err) {
-          reject(err);
+          const blob = this.base64ToBlob(base64, mimeType);
+          restoreItems.push({ id: trackId, blob });
+        } catch {
+          console.warn(`Could not restore audio for track ${trackId}`);
         }
-      };
-      reader.onerror = () => reject(reader.error);
-      reader.readAsText(file);
-    });
+      }
+      if (restoreItems.length > 0) {
+        await this.saveAudioBlobsBatch(restoreItems);
+      }
+      // Remove audioData from returned object (it's internal transport only)
+      delete (parsed as Record<string, unknown>).audioData;
+    }
+
+    return parsed;
   }
 }
 

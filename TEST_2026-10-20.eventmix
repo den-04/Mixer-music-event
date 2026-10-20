@@ -1,0 +1,272 @@
+{
+  "projectName": "TEST",
+  "version": "1.0.0",
+  "createdAt": 1792480278739,
+  "updatedAt": 1792480278739,
+  "tracks": [
+    {
+      "id": "track_1792480263832_0_3xpl",
+      "title": "Minigame",
+      "duration": 100.022813,
+      "fileType": "audio/mpeg",
+      "category": "game",
+      "addedAt": 1792480263832
+    }
+  ],
+  "cues": [],
+  "soundpads": [
+    {
+      "id": "pad-1",
+      "slot": 0,
+      "label": "👏 Vỗ tay lớn",
+      "hotkey": "1",
+      "color": "#00e676",
+      "soundType": "builtin",
+      "builtinId": "applause",
+      "volume": 0.9,
+      "loop": false,
+      "ducking": false
+    },
+    {
+      "id": "pad-2",
+      "slot": 1,
+      "label": "🎺 Kèn trao giải",
+      "hotkey": "2",
+      "color": "#00f2fe",
+      "soundType": "builtin",
+      "builtinId": "fanfare",
+      "volume": 0.95,
+      "loop": false,
+      "ducking": true
+    },
+    {
+      "id": "pad-3",
+      "slot": 2,
+      "label": "🥁 Trống hồi hộp",
+      "hotkey": "3",
+      "color": "#ff9100",
+      "soundType": "builtin",
+      "builtinId": "drumroll",
+      "volume": 0.9,
+      "loop": false,
+      "ducking": false
+    },
+    {
+      "id": "pad-4",
+      "slot": 3,
+      "label": "⏰ Đếm ngược 5s",
+      "hotkey": "4",
+      "color": "#ffd600",
+      "soundType": "builtin",
+      "builtinId": "countdown",
+      "volume": 0.9,
+      "loop": false,
+      "ducking": true
+    },
+    {
+      "id": "pad-5",
+      "slot": 4,
+      "label": "✅ Trả lời đúng",
+      "hotkey": "5",
+      "color": "#00e676",
+      "soundType": "builtin",
+      "builtinId": "correct",
+      "volume": 0.85,
+      "loop": false,
+      "ducking": false
+    },
+    {
+      "id": "pad-6",
+      "slot": 5,
+      "label": "❌ Còi báo sai",
+      "hotkey": "6",
+      "color": "#ff1744",
+      "soundType": "builtin",
+      "builtinId": "wrong",
+      "volume": 0.85,
+      "loop": false,
+      "ducking": false
+    },
+    {
+      "id": "pad-7",
+      "slot": 6,
+      "label": "🎁 Quay số may mắn",
+      "hotkey": "7",
+      "color": "#d500f9",
+      "soundType": "builtin",
+      "builtinId": "jackpot",
+      "volume": 0.9,
+      "loop": false,
+      "ducking": false
+    },
+    {
+      "id": "pad-8",
+      "slot": 7,
+      "label": "🔔 Chuông khai mạc",
+      "hotkey": "8",
+      "color": "#7c4dff",
+      "soundType": "builtin",
+      "builtinId": "gong",
+      "volume": 0.9,
+      "loop": false,
+      "ducking": false
+    },
+    {
+      "id": "pad-9",
+      "slot": 8,
+      "label": "👏 Vỗ tay nhiệt liệt",
+      "hotkey": "9",
+      "color": "#00e676",
+      "soundType": "builtin",
+      "builtinId": "applause",
+      "volume": 0.9,
+      "loop": false,
+      "ducking": false
+    },
+    {
+      "id": "pad-10",
+      "slot": 9,
+      "label": "🎺 Fanfare vinh danh",
+      "hotkey": "0",
+      "color": "#00f2fe",
+      "soundType": "builtin",
+      "builtinId": "fanfare",
+      "volume": 0.9,
+      "loop": false,
+      "ducking": true
+    },
+    {
+      "id": "pad-11",
+      "slot": 10,
+      "label": "🥁 Trống dồn",
+      "hotkey": "-",
+      "color": "#ff9100",
+      "soundType": "builtin",
+      "builtinId": "drumroll",
+      "volume": 0.85,
+      "loop": false,
+      "ducking": false
+    },
+    {
+      "id": "pad-12",
+      "slot": 11,
+      "label": "⏰ Đếm ngược",
+      "hotkey": "=",
+      "color": "#ffd600",
+      "soundType": "builtin",
+      "builtinId": "countdown",
+      "volume": 0.85,
+      "loop": false,
+      "ducking": false
+    }
+  ],
+  "quickLaunchSlots": [
+    {
+      "id": "ql-0",
+      "slot": 0,
+      "label": "Minigame",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#00f2fe",
+      "trackId": "track_1792480263832_0_3xpl",
+      "fileUrl": "blob:http://localhost:5173/f78ce8df-37ec-4653-8559-0669b65ab4f7",
+      "duration": 100.022813
+    },
+    {
+      "id": "ql-1",
+      "slot": 1,
+      "label": "",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#ff6d00"
+    },
+    {
+      "id": "ql-2",
+      "slot": 2,
+      "label": "",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#00e676"
+    },
+    {
+      "id": "ql-3",
+      "slot": 3,
+      "label": "",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#ffd600"
+    },
+    {
+      "id": "ql-4",
+      "slot": 4,
+      "label": "",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#d500f9"
+    },
+    {
+      "id": "ql-5",
+      "slot": 5,
+      "label": "",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#ff1744"
+    },
+    {
+      "id": "ql-6",
+      "slot": 6,
+      "label": "",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#7c4dff"
+    },
+    {
+      "id": "ql-7",
+      "slot": 7,
+      "label": "",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#00b0ff"
+    },
+    {
+      "id": "ql-8",
+      "slot": 8,
+      "label": "",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#ff6f00"
+    },
+    {
+      "id": "ql-9",
+      "slot": 9,
+      "label": "",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#64dd17"
+    },
+    {
+      "id": "ql-10",
+      "slot": 10,
+      "label": "",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#f50057"
+    },
+    {
+      "id": "ql-11",
+      "slot": 11,
+      "label": "",
+      "volume": 0.9,
+      "loop": false,
+      "color": "#00bcd4"
+    }
+  ],
+  "mixerSettings": {
+    "crossfader": 0,
+    "masterVolume": 1,
+    "isMuted": false,
+    "isDuckingActive": false,
+    "duckingAmount": 0.25,
+    "autoFadeDuration": 3
+  }
+}

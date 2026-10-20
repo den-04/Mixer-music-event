@@ -194,9 +194,10 @@ export const PresetModal: React.FC<PresetModalProps> = ({
   };
 
   // Export preset to file
-  const handleExportPreset = (preset: EventPreset) => {
-    storageService.exportProjectFile(preset.data);
+  const handleExportPreset = async (preset: EventPreset) => {
+    await storageService.exportProjectFile(preset.data);
   };
+
 
   // Import preset file
   const handleImportPresetFile = async (file: File) => {
