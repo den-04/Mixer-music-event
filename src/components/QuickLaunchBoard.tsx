@@ -136,15 +136,14 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
     const inPt = slot.startTime ?? 0;
     if (state?.isPlaying) {
       audio.pause();
-      audio.currentTime = inPt;
       setPlayStates(prev => new Map(prev).set(slot.id, {
         isPlaying: false,
-        currentTime: inPt,
+        currentTime: audio.currentTime,
         duration: audio.duration || 0,
       }));
     } else {
       const outPt = slot.endTime ?? audio.duration;
-      if (audio.ended || audio.currentTime >= (outPt || audio.duration) - 0.1 || audio.currentTime < inPt) {
+      if (audio.ended || (outPt > 0 && audio.currentTime >= outPt - 0.1) || audio.currentTime < inPt) {
         audio.currentTime = inPt;
       }
       audio.play().catch(console.error);
@@ -152,12 +151,17 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
   };
 
   const handleStop = (slot: QuickLaunchSlot) => {
+    const inPt = slot.startTime ?? 0;
     const audio = audioRefs.current.get(slot.id);
     if (audio) {
       audio.pause();
-      audio.currentTime = slot.startTime ?? 0;
+      audio.currentTime = inPt;
       setPlayStates(prev => new Map(prev).set(slot.id, {
-        isPlaying: false, currentTime: slot.startTime ?? 0, duration: audio.duration || 0,
+        isPlaying: false, currentTime: inPt, duration: audio.duration || 0,
+      }));
+    } else {
+      setPlayStates(prev => new Map(prev).set(slot.id, {
+        isPlaying: false, currentTime: inPt, duration: slot.duration || 0,
       }));
     }
   };
@@ -176,13 +180,19 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
   };
 
   const handleScrubberClick = (e: React.MouseEvent<HTMLDivElement>, slot: QuickLaunchSlot) => {
-    const audio = audioRefs.current.get(slot.id);
-    if (!audio) return;
+    if (!slot.fileUrl) return;
+    const audio = getOrCreateAudio(slot.id, slot.fileUrl, slot.volume, slot.loop);
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const dur = audio.duration || slot.duration || 0;
     if (!dur) return;
-    audio.currentTime = ratio * dur;
+    const newTime = ratio * dur;
+    audio.currentTime = newTime;
+    setPlayStates(prev => new Map(prev).set(slot.id, {
+      isPlaying: !audio.paused,
+      currentTime: newTime,
+      duration: dur,
+    }));
   };
 
   const handleSetIn = (slot: QuickLaunchSlot) => {
@@ -323,11 +333,11 @@ export const QuickLaunchBoard: React.FC<QuickLaunchBoardProps> = ({
                   <div className="qlb-controls">
                     <button className={`qlb-play-btn ${isPlaying ? 'qlb-playing' : 'qlb-cued'}`}
                       style={isPlaying ? { background: color, boxShadow: `0 0 14px ${color}80` } : { borderColor: color, color }}
-                      onClick={() => handleTogglePlay(slot)} title={isPlaying ? 'Tam dung' : 'Phat ngay'}>
+                      onClick={() => handleTogglePlay(slot)} title={isPlaying ? 'Tạm dừng (giữ nguyên vị trí)' : 'Phát nhạc'}>
                       {isPlaying ? <Pause size={18} /> : <Play size={18} />}
                     </button>
                     <button className="qlb-stop-btn" onClick={() => handleStop(slot)}
-                      disabled={!isPlaying && currentTime === (slot.startTime ?? 0)} title="Dung & ve IN point">
+                      disabled={!isPlaying && currentTime === (slot.startTime ?? 0)} title="Dừng hẳn & về đầu">
                       <Square size={13} />
                     </button>
                     <button className={`qlb-loop-btn ${slot.loop ? 'active' : ''}`}
