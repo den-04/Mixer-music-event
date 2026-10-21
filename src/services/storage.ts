@@ -302,7 +302,7 @@ class StorageService {
         await this.saveAudioBlobsBatch(restoreItems);
       }
       // Remove audioData from returned object (it's internal transport only)
-      delete (parsed as Record<string, unknown>).audioData;
+      delete parsed.audioData;
     }
 
     return parsed;

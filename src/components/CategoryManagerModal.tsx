@@ -3,7 +3,7 @@ import {
   X, Plus, Trash2, Edit2, Check, ArrowUp, ArrowDown,
   RotateCcw, FolderPlus, Tag, Music, AlertCircle
 } from 'lucide-react';
-import type { AudioTrack, CustomCategory, EventCategory } from '../types/audio';
+import type { AudioTrack, CustomCategory } from '../types/audio';
 import { DEFAULT_CATEGORIES } from '../types/audio';
 
 interface CategoryManagerModalProps {

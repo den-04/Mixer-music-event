@@ -396,9 +396,6 @@ export class AudioEngine {
     return this.duckingLevel;
   }
 
-  // Active Soundpad controllers map (padId -> stop function)
-  private activePadControllers: Map<string, { stop: () => void }> = new Map();
-
   // Check if a specific Soundpad is currently playing
   public isPadPlaying(padId: string): boolean {
     return this.activePadControllers.has(padId);
